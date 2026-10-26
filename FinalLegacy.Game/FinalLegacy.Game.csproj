@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The console game: draws the screens, reads the keys and hands the choices to the adventure in the Library. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>final-legacy</AssemblyName>
+    <RootNamespace>FinalLegacy.Game</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FinalLegacy.Library\FinalLegacy.Library.csproj" />
+  </ItemGroup>
+
+</Project>

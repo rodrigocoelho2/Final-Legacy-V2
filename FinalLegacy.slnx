@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="FinalLegacy.Game/FinalLegacy.Game.csproj" />
+  <Project Path="FinalLegacy.Library/FinalLegacy.Library.csproj" />
+  <Project Path="FinalLegacy.UnitTest/FinalLegacy.UnitTest.csproj" />
+</Solution>

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The game without the console: rules, story, combat and the adventure that runs them. The content (stats, story
+       graph and every text in Portuguese and English) lives in Content/*.json, embedded in the assembly. -->
+  <PropertyGroup>
+    <RootNamespace>FinalLegacy.Library</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Content\*.json" LogicalName="FinalLegacy.Content.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>

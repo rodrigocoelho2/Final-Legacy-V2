@@ -1,0 +1,47 @@
+{
+  "start": "cave",
+  "scenes": {
+    "cave": {
+      "text": "cave.awake",
+      "choices": [
+        { "label": "common.yes", "goto": "skeleton-intro" },
+        { "label": "common.no", "reply": "cave.refuse" }
+      ]
+    },
+    "skeleton-intro": {
+      "text": "skeleton.intro",
+      "goto": "skeleton-fight"
+    },
+    "skeleton-fight": {
+      "battle": { "enemy": "skeleton", "canFlee": false },
+      "win": "skeleton-won"
+    },
+    "skeleton-won": {
+      "text": "skeleton.won",
+      "choices": [
+        { "label": "common.yes", "goto": "city" },
+        { "label": "common.no", "goto": "forest" }
+      ]
+    },
+    "city": {
+      "text": "city.shadow",
+      "goto": "shadow-fight"
+    },
+    "shadow-fight": {
+      "battle": { "enemy": "shadow", "canFlee": false },
+      "win": "chapter-end"
+    },
+    "forest": {
+      "text": "forest.golem",
+      "goto": "golem-fight"
+    },
+    "golem-fight": {
+      "battle": { "enemy": "golem", "canFlee": false },
+      "win": "chapter-end"
+    },
+    "chapter-end": {
+      "text": "chapter.end",
+      "end": true
+    }
+  }
+}

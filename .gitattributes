@@ -1,0 +1,10 @@
+# Files that run inside Linux containers must keep LF line endings, even in a clone made on Windows.
+* text=auto
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+# The original 2023 source is kept exactly as it was.
+Original/** -text
+# Binary assets
+*.png binary
+*.gif binary

@@ -1,0 +1,136 @@
+{
+  "heroMaxHp": 100,
+  "nameMaxLength": 20,
+  "combat": {
+    "attackMultiplier": 2,
+    "critChancePerAgility": 0.04,
+    "dodgeChancePerAgility": 0.03,
+    "fleeBaseChance": 0.4,
+    "fleeChancePerAgility": 0.1,
+    "magicDivisor": 1,
+    "minimumHit": 1
+  },
+  "classes": [
+    {
+      "id": "warrior",
+      "color": "crimson",
+      "stats": {
+        "attack": 4,
+        "defense": 5,
+        "agility": 2,
+        "intelligence": 2
+      },
+      "weapons": [
+        "doransShield",
+        "arturiasSword"
+      ]
+    },
+    {
+      "id": "mage",
+      "color": "cyan",
+      "stats": {
+        "attack": 3,
+        "defense": 3,
+        "agility": 1,
+        "intelligence": 6
+      },
+      "weapons": [
+        "doransRing",
+        "largeStaff"
+      ]
+    },
+    {
+      "id": "assassin",
+      "color": "violet",
+      "stats": {
+        "attack": 5,
+        "defense": 1,
+        "agility": 5,
+        "intelligence": 2
+      },
+      "weapons": [
+        "doransKnife",
+        "shojinBlade"
+      ]
+    }
+  ],
+  "weapons": [
+    {
+      "id": "doransShield",
+      "modifiers": {
+        "defense": 2,
+        "attack": -1
+      }
+    },
+    {
+      "id": "arturiasSword",
+      "modifiers": {
+        "attack": 2,
+        "defense": -1
+      }
+    },
+    {
+      "id": "doransRing",
+      "modifiers": {
+        "intelligence": 2,
+        "attack": -1
+      }
+    },
+    {
+      "id": "largeStaff",
+      "modifiers": {
+        "intelligence": 2,
+        "agility": -1
+      }
+    },
+    {
+      "id": "doransKnife",
+      "modifiers": {
+        "attack": 2,
+        "intelligence": -1
+      }
+    },
+    {
+      "id": "shojinBlade",
+      "modifiers": {
+        "attack": 2,
+        "defense": -1
+      }
+    }
+  ],
+  "enemies": [
+    {
+      "id": "skeleton",
+      "hp": 50,
+      "stats": {
+        "attack": 12,
+        "defense": 2,
+        "agility": 1,
+        "intelligence": 0
+      },
+      "aggression": 0.5
+    },
+    {
+      "id": "shadow",
+      "hp": 60,
+      "stats": {
+        "attack": 17,
+        "defense": 2,
+        "agility": 5,
+        "intelligence": 0
+      },
+      "aggression": 0.6
+    },
+    {
+      "id": "golem",
+      "hp": 65,
+      "stats": {
+        "attack": 15,
+        "defense": 6,
+        "agility": 0,
+        "intelligence": 0
+      },
+      "aggression": 0.5
+    }
+  ]
+}

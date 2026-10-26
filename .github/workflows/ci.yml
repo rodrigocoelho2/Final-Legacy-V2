@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build-test:
+    name: Build, tests and a playthrough
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build
+        run: dotnet build FinalLegacy.slnx -c Release
+
+      - name: Test
+        run: >-
+          dotnet test FinalLegacy.UnitTest/FinalLegacy.UnitTest.csproj -c Release --no-build
+          --logger "console;verbosity=normal"
+
+      # Plays the whole chapter in both languages with piped answers: Assassin, Blade of Shojin, then "1" to every
+      # question (keep going, explore, attack). The game must reach the end of the chapter and exit cleanly when the
+      # answers run out.
+      - name: Playthrough
+        run: |
+          mkdir -p playthrough
+          for lang in pt en; do
+            { printf '3\n2\n\nRodas\n\n'; yes 1 | head -n 200; } \
+              | dotnet run --project FinalLegacy.Game -c Release --no-build -- --lang $lang --seed 1 \
+              > playthrough/$lang.txt
+            grep -E "Fim do Capítulo I|End of Chapter I" playthrough/$lang.txt
+          done
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playthrough
+          path: playthrough/
+
+  publish:
+    name: Executables (${{ matrix.rid }})
+    needs: build-test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rid: [win-x64, linux-x64, osx-arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish a single self-contained file
+        run: >-
+          dotnet publish FinalLegacy.Game/FinalLegacy.Game.csproj -c Release -r ${{ matrix.rid }}
+          --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:DebugType=none -o out/${{ matrix.rid }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: final-legacy-${{ matrix.rid }}
+          path: out/${{ matrix.rid }}/
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: docker build -f FinalLegacy.Game/Dockerfile -t final-legacy .
+
+      - name: Play the start in the container
+        run: |
+          { printf '1\n1\n\nRodas\n\n1\n'; } | docker run -i --rm final-legacy --lang en > docker.txt || true
+          cat docker.txt
+          grep "you wake up in a dark cave" docker.txt
