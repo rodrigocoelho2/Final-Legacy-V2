@@ -12,6 +12,8 @@ public sealed record MenuTexts(string KeysHint, string LineHint, string Invalid,
 /// </summary>
 public sealed class MenuPrompt(GameTerminal terminal, MenuTexts texts)
 {
+    private string? _lastHeader;
+
     /// <param name="header">The text above the menu; typed out the first time the screen is drawn.</param>
     /// <param name="body">Draws the options (and anything under them) for the highlighted index, or -1 for none.</param>
     /// <param name="count">How many options there are.</param>
@@ -28,7 +30,7 @@ public sealed class MenuPrompt(GameTerminal terminal, MenuTexts texts)
     {
         terminal.Clear();
         terminal.Write(before);
-        terminal.Type(header);
+        TypeOnce(header);
         terminal.Write(Footer(body(selected), texts.KeysHint));
 
         while (true)
@@ -66,7 +68,7 @@ public sealed class MenuPrompt(GameTerminal terminal, MenuTexts texts)
     {
         terminal.Clear();
         terminal.Write(before);
-        terminal.Type(header);
+        TypeOnce(header);
         var invalidAnswers = 0;
 
         while (true)
@@ -83,6 +85,15 @@ public sealed class MenuPrompt(GameTerminal terminal, MenuTexts texts)
             terminal.WriteLine();
             terminal.WriteLine($"  [red]{(invalidAnswers > 1 ? texts.InvalidAgain : texts.Invalid)}[/]");
         }
+    }
+
+    /// <summary>Types a header out the first time; when the same screen comes back (after a purchase, after the
+    /// inventory), it appears at once.</summary>
+    private void TypeOnce(string header)
+    {
+        if (header == _lastHeader) terminal.Write(header);
+        else terminal.Type(header);
+        _lastHeader = header;
     }
 
     private static string Footer(string body, string hint) => $"{body}\n\n  [dim]{hint}[/]\n";

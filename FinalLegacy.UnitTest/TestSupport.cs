@@ -1,7 +1,6 @@
 using FinalLegacy.Library.Adventures;
 using FinalLegacy.Library.Combat;
 using FinalLegacy.Library.Content;
-using FinalLegacy.Library.Enums;
 using FinalLegacy.Library.Models;
 
 namespace FinalLegacy.UnitTest;
@@ -15,11 +14,18 @@ public static class TestSupport
 
     public static GameRules Rules => Content.Rules;
 
-    public static Hero Hero(string classId, string weaponId, string name = "Rodas") =>
-        new(name, Rules.Class(classId), Rules.Weapon(weaponId), Rules.HeroMaxHp);
+    /// <summary>A hero of a class wearing the kit named after <paramref name="show"/>.</summary>
+    public static Hero Hero(string classId, string show, string name = "Rodas")
+    {
+        var heroClass = Rules.Class(classId);
+        return Rules.NewHero(name, heroClass, heroClass.Kits.Single(k => k.Show == show));
+    }
 
     public static Battle Battle(Hero hero, string enemyId, IRandomSource dice, bool canFlee = false) =>
         new(hero, Rules.Enemy(enemyId), canFlee, Rules.Combat, dice);
+
+    /// <summary>The roll that makes a die of <paramref name="sides"/> land on <paramref name="value"/>.</summary>
+    public static double Face(int value, int sides = 20) => (value - 0.5) / sides;
 }
 
 /// <summary>Loaded dice: hands out the given rolls in order and fails the test if asked for one more.</summary>
@@ -33,7 +39,11 @@ public sealed class LoadedDice(params double[] rolls) : IRandomSource
         _rolls.Count > 0 ? _rolls.Dequeue() : throw new InvalidOperationException("The test ran out of dice rolls.");
 }
 
-/// <summary>Dice that always land on the same number (0.99: the enemy always defends; 0: everything that can happen does).</summary>
+/// <summary>
+/// Dice that always land on the same number. 0.99 means: the enemy always guards, every d20 is a 20 (so the hero
+/// always lands a critical, even with disadvantage), every drop chance fails and every random loot roll picks the
+/// rarest entry.
+/// </summary>
 public sealed class FixedDice(double roll) : IRandomSource
 {
     public double NextDouble() => roll;
@@ -41,16 +51,18 @@ public sealed class FixedDice(double roll) : IRandomSource
 
 /// <summary>
 /// A player that answers from a script and remembers everything the game showed, so a whole playthrough can be
-/// checked without a console.
+/// checked without a console. With no answer left, menus get their first option and the inventory and merchant
+/// their last one (close / move on).
 /// </summary>
 public sealed class ScriptedUi : IGameUi
 {
     private readonly Queue<int> _choices = new();
     private readonly Queue<string> _names = new();
+    private readonly Queue<int> _gear = new();
 
     public int ClassChoice { get; init; }
-    public int WeaponChoice { get; init; }
-    public CombatAction Action { get; init; } = CombatAction.Attack;
+    public int KitChoice { get; init; }
+    public int Action { get; init; }
 
     public List<string> Narrations { get; } = [];
     public List<string> ChoiceTexts { get; } = [];
@@ -58,21 +70,29 @@ public sealed class ScriptedUi : IGameUi
     public List<string?> NameErrors { get; } = [];
     public List<BattleScreen> BattleScreens { get; } = [];
     public List<string> BattleResults { get; } = [];
+    public List<BattleScreen> EndScreens { get; } = [];
+    public List<LootScreen> Loot { get; } = [];
+    public List<GearScreen> GearScreens { get; } = [];
     public IReadOnlyList<ClassOption> Classes { get; private set; } = [];
-    public IReadOnlyList<WeaponOption> Weapons { get; private set; } = [];
+    public IReadOnlyList<KitOption> Kits { get; private set; } = [];
     public bool TitleShown { get; private set; }
 
-    /// <summary>The answers to the story's menus, in order (0 = the first option).</summary>
     public ScriptedUi Choosing(params int[] choices)
     {
         foreach (var choice in choices) _choices.Enqueue(choice);
         return this;
     }
 
-    /// <summary>What the player types when asked for a name, in order.</summary>
     public ScriptedUi Named(params string[] names)
     {
         foreach (var name in names) _names.Enqueue(name);
+        return this;
+    }
+
+    /// <summary>Answers for the inventory and merchant screens, in order.</summary>
+    public ScriptedUi InGear(params int[] answers)
+    {
+        foreach (var answer in answers) _gear.Enqueue(answer);
         return this;
     }
 
@@ -84,10 +104,10 @@ public sealed class ScriptedUi : IGameUi
         return ClassChoice;
     }
 
-    public int ChooseWeapon(string intro, IReadOnlyList<WeaponOption> options)
+    public int ChooseKit(string intro, IReadOnlyList<KitOption> options)
     {
-        Weapons = options;
-        return WeaponChoice;
+        Kits = options;
+        return KitChoice;
     }
 
     public string AskName(string prompt, string? error)
@@ -96,7 +116,7 @@ public sealed class ScriptedUi : IGameUi
         return _names.Count > 0 ? _names.Dequeue() : "Rodas";
     }
 
-    public void Narrate(string text) => Narrations.Add(text);
+    public void Narrate(string text, HeroCard? portrait = null) => Narrations.Add(text);
 
     public int Choose(string text, IReadOnlyList<string> options, string? note = null)
     {
@@ -105,12 +125,29 @@ public sealed class ScriptedUi : IGameUi
         return _choices.Count > 0 ? _choices.Dequeue() : throw new InvalidOperationException("The script has no answer left.");
     }
 
-    public CombatAction ChooseAction(BattleScreen screen)
+    public int ChooseAction(BattleScreen screen)
     {
         BattleScreens.Add(screen);
         if (BattleScreens.Count > 500) throw new InvalidOperationException("The battle never ends.");
         return Action;
     }
 
-    public void ShowBattleEnd(BattleScreen screen, string result) => BattleResults.Add(result);
+    public void ShowBattleEnd(BattleScreen screen, string result)
+    {
+        EndScreens.Add(screen);
+        BattleResults.Add(result);
+    }
+
+    public int ShowLoot(LootScreen screen)
+    {
+        Loot.Add(screen);
+        return 0;
+    }
+
+    public int Gear(GearScreen screen)
+    {
+        GearScreens.Add(screen);
+        if (GearScreens.Count > 200) throw new InvalidOperationException("The inventory never closes.");
+        return _gear.Count > 0 ? _gear.Dequeue() : screen.Entries.Count - 1;
+    }
 }

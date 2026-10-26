@@ -4,6 +4,14 @@ using FinalLegacy.Library.Text;
 
 namespace FinalLegacy.Game.Terminal;
 
+/// <summary>How pixel art is drawn.</summary>
+public enum ArtMode
+{
+    None,
+    Palette256,
+    TrueColor,
+}
+
 /// <summary>The player closed the input (end of a piped script, Ctrl+D/Ctrl+Z): time to leave quietly.</summary>
 public sealed class EndOfInputException : Exception;
 
@@ -27,6 +35,8 @@ public sealed class GameTerminal
         ["violet"] = "1;35",
         ["green"] = "1;32",
         ["dim"] = "2",
+        ["white"] = "0;97",
+        ["blue"] = "1;34",
     };
 
     public GameTerminal(bool color, bool animate, int charDelayMs)
@@ -45,6 +55,9 @@ public sealed class GameTerminal
     public bool Color { get; private set; }
     public bool Animate { get; }
     public int CharDelayMs { get; }
+
+    /// <summary>How pixel art can be drawn: in full colour, in 256 colours, or not at all (no colours).</summary>
+    public ArtMode Art => !Color ? ArtMode.None : TrueColorTerminal() ? ArtMode.TrueColor : ArtMode.Palette256;
 
     /// <summary>The original's [pause]: the slow "..." after the hero's name.</summary>
     public int PauseMs { get; init; } = 500;
@@ -235,6 +248,20 @@ public sealed class GameTerminal
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// Whether the terminal shows 24-bit colour: it says so (COLORTERM), it's Windows Terminal or Windows' own console
+    /// (both do since Windows 10), or a terminal known to. Apple's Terminal doesn't, so it gets 256 colours.
+    /// </summary>
+    private static bool TrueColorTerminal()
+    {
+        if (Environment.GetEnvironmentVariable("FINAL_LEGACY_COLORS") is { } forced) return forced != "256";
+        var colorTerm = Environment.GetEnvironmentVariable("COLORTERM") ?? "";
+        if (colorTerm.Contains("truecolor", StringComparison.OrdinalIgnoreCase) || colorTerm.Contains("24bit")) return true;
+        if (OperatingSystem.IsWindows()) return true;
+        var program = Environment.GetEnvironmentVariable("TERM_PROGRAM") ?? "";
+        return program is "iTerm.app" or "vscode" or "WezTerm" or "ghostty" || Environment.GetEnvironmentVariable("WT_SESSION") is not null;
     }
 
     private static void TrySet(Action set)

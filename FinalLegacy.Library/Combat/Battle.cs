@@ -1,31 +1,34 @@
 using FinalLegacy.Library.Enums;
+using FinalLegacy.Library.Items;
 using FinalLegacy.Library.Models;
 
 namespace FinalLegacy.Library.Combat;
 
+/// <summary>Something that happened in a round, with the dice behind it.</summary>
+public sealed record RoundEvent(
+    RoundEventKind Kind,
+    D20Roll? Roll = null,
+    DamageRoll? Damage = null,
+    Item? Item = null);
+
 /// <summary>
-/// One fight, round by round. The rules are the original's (attack, defend or flee against an enemy that randomly
-/// attacks or defends), with agility and intelligence now counting too:
+/// One fight, D&amp;D style, keeping the original's choices (attack, defend, flee — plus drinking a potion) and its
+/// enemy that randomly attacks or guards.
 /// <list type="bullet">
-///   <item>Attacking deals your ATK minus half the enemy's DEF (its armour); all of its DEF if it defends.</item>
-///   <item>Intelligence adds INT ÷ 2 of magic damage that no defence stops (the Mage's strength).</item>
-///   <item>Agility gives a chance of a critical hit (double ATK) and of dodging a hit when not defending.</item>
-///   <item>Your armour takes half your DEF off every hit; defending takes all of it.</item>
-///   <item>Blocking a hit sets up a counter-attack: the next hit that lands is a critical that ignores armour.</item>
-///   <item>Fleeing, when the battle allows it, works more often the more agile you are; failing costs a free hit.</item>
+///   <item>Every round the enemy first decides: attack (its aggression) or guard.</item>
+///   <item>Attacking rolls d20 + attack bonus against the enemy's CA, with disadvantage if it guards (or if the hero
+///   wears armour they aren't trained in). A natural 20 is a critical (double dice), a natural 1 always misses.</item>
+///   <item>Defending gives the enemy disadvantage; if it misses, the hero's guard opened it up and their next attack
+///   has advantage.</item>
+///   <item>A potion heals but takes the round.</item>
+///   <item>Fleeing, when allowed, is d20 + AGI modifier against the flee difficulty; failing gives the enemy a hit.</item>
 /// </list>
-/// The hero acts first, so an enemy that drops to 0 HP doesn't hit back.
-/// The dice are rolled in a fixed order so a test can load them: the enemy's intent; then the hero's attack (the
-/// enemy's dodge unless it defends, the critical unless a counter is ready); then the enemy's attack (the hero's dodge
-/// unless defending). Fleeing rolls the escape first, and the hero's dodge if the escape fails.
+/// The hero acts first, so a knocked-out enemy doesn't hit back. HP is the hero's own and carries over.
 /// </summary>
 public sealed class Battle
 {
-    private const double MaxChance = 0.95;
-
     private readonly CombatSettings _settings;
     private readonly IRandomSource _random;
-    private bool _counterReady;
 
     public Battle(Hero hero, EnemyType enemy, bool canFlee, CombatSettings settings, IRandomSource random)
     {
@@ -34,147 +37,116 @@ public sealed class Battle
         CanFlee = canFlee;
         _settings = settings;
         _random = random;
-        HeroHp = hero.MaxHp;
         EnemyHp = enemy.MaxHp;
     }
 
     public Hero Hero { get; }
     public EnemyType Enemy { get; }
     public bool CanFlee { get; }
-    public int HeroHp { get; private set; }
     public int EnemyHp { get; private set; }
-
-    /// <summary>Rounds played so far (a refused flee doesn't count).</summary>
     public int Round { get; private set; }
-
     public BattleOutcome Outcome { get; private set; } = BattleOutcome.Ongoing;
 
-    /// <summary>The hero blocked a hit, so their next attack is a guaranteed critical (a counter-attack).</summary>
-    public bool CounterReady => _counterReady;
+    /// <summary>The hero blocked a hit while defending: their next attack has advantage.</summary>
+    public bool HeroHasOpening { get; private set; }
 
-    /// <summary>Plays one round with the hero's action and tells what happened.</summary>
-    public IReadOnlyList<RoundEvent> Play(CombatAction action)
+    /// <summary>Plays a round. <paramref name="potion"/> is the potion to drink for <see cref="CombatAction.UseItem"/>.</summary>
+    public IReadOnlyList<RoundEvent> Play(CombatAction action, Item? potion = null)
     {
-        if (Outcome != BattleOutcome.Ongoing)
-        {
-            throw new InvalidOperationException($"The battle is over ({Outcome}).");
-        }
+        if (Outcome != BattleOutcome.Ongoing) throw new InvalidOperationException($"The battle is over ({Outcome}).");
 
         var events = new List<RoundEvent>();
-
-        if (action == CombatAction.Flee)
+        if (action == CombatAction.Flee && !CanFlee)
         {
-            if (!CanFlee)
-            {
-                // The original printed this and let you choose again; the enemy doesn't get a free turn.
-                events.Add(new RoundEvent(RoundEventKind.FleeLocked));
-                return events;
-            }
-
-            Round++;
-            if (Roll(FleeChance))
-            {
-                Outcome = BattleOutcome.Fled;
-                events.Add(new RoundEvent(RoundEventKind.Fled));
-                return events;
-            }
-
-            events.Add(new RoundEvent(RoundEventKind.FleeFailed));
-            EnemyAttacks(heroDefending: false, events);
-            Settle();
+            // The original said this and let you choose again; no round goes by.
+            events.Add(new RoundEvent(RoundEventKind.FleeLocked));
             return events;
         }
 
-        Round++;
-        var enemyAttacks = Roll(Enemy.Aggression);
-
-        if (action == CombatAction.Attack)
+        if (action == CombatAction.UseItem && (potion?.Consumable is null || Hero.Count(potion.Id) == 0))
         {
-            HeroAttacks(enemyDefending: !enemyAttacks, events);
+            throw new InvalidOperationException("Drinking needs a potion the hero has.");
         }
-        else if (!enemyAttacks)
+
+        Round++;
+        var enemyAttacks = Roll() < Enemy.Aggression;
+        var defending = false;
+        if (!enemyAttacks && action is CombatAction.Attack or CombatAction.UseItem)
         {
-            events.Add(new RoundEvent(RoundEventKind.BothDefend));
+            events.Add(new RoundEvent(RoundEventKind.EnemyGuards));
+        }
+
+        switch (action)
+        {
+            case CombatAction.Attack:
+                HeroAttacks(enemyGuards: !enemyAttacks, events);
+                break;
+            case CombatAction.Defend:
+                defending = true;
+                events.Add(new RoundEvent(enemyAttacks ? RoundEventKind.HeroGuards : RoundEventKind.BothGuard));
+                break;
+            case CombatAction.UseItem:
+                events.Add(new RoundEvent(RoundEventKind.HeroHeals, Damage: Hero.Drink(potion!, _random), Item: potion));
+                break;
+            case CombatAction.Flee:
+                var escape = D20Roll.Roll(_random, RollMode.Normal, Hero.Mod(Hero.Stats.Agility), _settings.FleeDifficulty);
+                if (escape.Success)
+                {
+                    Outcome = BattleOutcome.Fled;
+                    events.Add(new RoundEvent(RoundEventKind.Fled, escape));
+                    return events;
+                }
+
+                events.Add(new RoundEvent(RoundEventKind.FleeFailed, escape));
+                enemyAttacks = true;
+                break;
         }
 
         if (enemyAttacks && EnemyHp > 0)
         {
-            EnemyAttacks(heroDefending: action == CombatAction.Defend, events);
+            EnemyAttacks(defending, events);
         }
 
-        Settle();
+        if (Hero.Hp == 0) Outcome = BattleOutcome.Lost;
+        else if (EnemyHp == 0) Outcome = BattleOutcome.Won;
         return events;
     }
 
-    /// <summary>Chance of getting away: the base chance plus a bit per point of agility.</summary>
-    public double FleeChance =>
-        Math.Min(MaxChance, _settings.FleeBaseChance + Hero.Stats.Agility * _settings.FleeChancePerAgility);
-
-    public double HeroCritChance => Math.Min(MaxChance, Hero.Stats.Agility * _settings.CritChancePerAgility);
-
-    public double HeroDodgeChance => Math.Min(MaxChance, Hero.Stats.Agility * _settings.DodgeChancePerAgility);
-
-    public double EnemyDodgeChance => Math.Min(MaxChance, Enemy.Stats.Agility * _settings.DodgeChancePerAgility);
-
-    private void HeroAttacks(bool enemyDefending, List<RoundEvent> events)
+    private void HeroAttacks(bool enemyGuards, List<RoundEvent> events)
     {
-        var stats = Hero.Stats;
+        var mode = D20Roll.ModeOf(HeroHasOpening, enemyGuards || !Hero.Proficient);
+        HeroHasOpening = false;
 
-        if (!enemyDefending && Roll(EnemyDodgeChance))
+        var roll = D20Roll.Roll(_random, mode, Hero.AttackBonus, Enemy.ArmorClass, Hero.Weapon.CritFrom);
+        DamageRoll? damage = null;
+        if (roll.Success)
         {
-            events.Add(new RoundEvent(RoundEventKind.EnemyDodged));
-            return;
+            damage = Hero.Damage.Roll(_random, roll.Critical);
+            EnemyHp = Math.Max(0, EnemyHp - damage.Total);
         }
 
-        var counter = _counterReady;
-        _counterReady = false;
-        var critical = counter || Roll(HeroCritChance);
-        var physical = stats.Attack * _settings.AttackMultiplier * (critical ? 2 : 1);
-        var armour = counter ? 0 : enemyDefending ? Enemy.Stats.Defense : Enemy.Stats.Defense / 2;
-        var blocked = Math.Min(physical, armour);
-        var magic = stats.Intelligence / _settings.MagicDivisor;
-        var damage = Math.Max(_settings.MinimumHit, physical - blocked + magic);
-
-        if (enemyDefending && !counter)
-        {
-            events.Add(new RoundEvent(RoundEventKind.EnemyDefended, Blocked: blocked));
-        }
-
-        EnemyHp = Math.Max(0, EnemyHp - damage);
-        var kind = counter ? RoundEventKind.HeroCounter : critical ? RoundEventKind.HeroCrit : RoundEventKind.HeroHit;
-        events.Add(new RoundEvent(kind, damage, blocked, magic));
+        events.Add(new RoundEvent(RoundEventKind.HeroAttack, roll, damage));
     }
 
     private void EnemyAttacks(bool heroDefending, List<RoundEvent> events)
     {
-        var attack = Enemy.Stats.Attack;
-
-        if (heroDefending)
+        var mode = heroDefending ? RollMode.Disadvantage : RollMode.Normal;
+        var roll = D20Roll.Roll(_random, mode, Enemy.AttackBonus, Hero.ArmorClass);
+        DamageRoll? damage = null;
+        if (roll.Success)
         {
-            var blocked = Math.Min(attack, Hero.Stats.Defense);
-            var damage = attack - blocked;
-            HeroHp = Math.Max(0, HeroHp - damage);
-            _counterReady = true;
-            events.Add(new RoundEvent(RoundEventKind.HeroBlocked, damage, blocked));
-            return;
+            damage = Enemy.Damage.Roll(_random, roll.Critical);
+            Hero.Hp = Math.Max(0, Hero.Hp - damage.Total);
         }
 
-        if (Roll(HeroDodgeChance))
+        events.Add(new RoundEvent(RoundEventKind.EnemyAttack, roll, damage));
+
+        if (heroDefending && !roll.Success && Hero.Hp > 0)
         {
-            events.Add(new RoundEvent(RoundEventKind.HeroDodged));
-            return;
+            HeroHasOpening = true;
+            events.Add(new RoundEvent(RoundEventKind.GuardOpening));
         }
-
-        var armour = Math.Min(attack, Hero.Stats.Defense / 2);
-        HeroHp = Math.Max(0, HeroHp - (attack - armour));
-        events.Add(new RoundEvent(RoundEventKind.EnemyHit, attack - armour, armour));
     }
 
-    private void Settle()
-    {
-        if (HeroHp == 0) Outcome = BattleOutcome.Lost;
-        else if (EnemyHp == 0) Outcome = BattleOutcome.Won;
-    }
-
-    private bool Roll(double chance) => _random.NextDouble() < chance;
+    private double Roll() => _random.NextDouble();
 }

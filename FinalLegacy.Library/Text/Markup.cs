@@ -30,6 +30,8 @@ public static class Markup
         "violet",  // the Assassin
         "green",   // the hero's HP bar
         "dim",     // hints
+        "white",   // common items
+        "blue",    // rare items
     };
 
     public static IEnumerable<MarkupToken> Parse(string text)

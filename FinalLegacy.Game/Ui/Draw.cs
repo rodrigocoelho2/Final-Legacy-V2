@@ -47,7 +47,8 @@ public static class Draw
     }
 
     /// <summary>"[1] Sim    [2] Não" with the highlighted one marked; on one line or one per line.</summary>
-    public static string Options(IReadOnlyList<string> labels, int selected, bool vertical, IReadOnlyList<string>? hints = null)
+    public static string Options(
+        IReadOnlyList<string> labels, int selected, bool vertical, IReadOnlyList<string>? hints = null, string separator = "     ")
     {
         var parts = labels.Select((label, i) =>
         {
@@ -56,7 +57,11 @@ public static class Draw
                 ? $"[gold]›[/] [gold][[{i + 1}] {label}[/]{hint}"
                 : $"  [[{i + 1}] {label}{hint}";
         });
-        return vertical ? " " + string.Join("\n ", parts) : " " + string.Join("     ", parts);
+        var list = parts.ToList();
+        var oneLine = " " + string.Join(separator, list);
+
+        // A menu too wide for the window goes one option per line.
+        return vertical || Markup.Strip(oneLine).Length > TextWidth ? " " + string.Join("\n ", list) : oneLine;
     }
 
     /// <summary>Pads text that may hold markup to a visible width.</summary>
@@ -114,6 +119,42 @@ public static class Draw
 
         lines.Add(current.ToString());
         return lines;
+    }
+
+    /// <summary>Wraps a whole text (several lines) at <paramref name="width"/> visible characters.</summary>
+    public static List<string> WrapText(string text, int width) =>
+        text.Split('\n').SelectMany(line => Wrap(line, width)).ToList();
+
+    /// <summary>A line of the left column and how wide it shows (sprite lines are 16, markup is measured).</summary>
+    public readonly record struct Cell(string Text, int Width)
+    {
+        public static Cell Of(string markup) => new(markup, Markup.Strip(markup).Length);
+    }
+
+    /// <summary>Sprite lines as cells, shifted right by <paramref name="offset"/> columns.</summary>
+    public static IEnumerable<Cell> SpriteCells(IReadOnlyList<string> lines, int offset = 0) =>
+        lines.Select(l => new Cell(new string(' ', offset) + l, offset + 16));
+
+    /// <summary>
+    /// Puts two columns side by side: <paramref name="left"/> padded to <paramref name="leftWidth"/>, then
+    /// <paramref name="right"/>. With no left column (no pixel art) the right one stands alone.
+    /// </summary>
+    public static string Columns(IEnumerable<Cell> left, int leftWidth, IReadOnlyList<string> right, int indent = 2, int gap = 3)
+    {
+        var leftList = left.ToList();
+        var pad = new string(' ', indent);
+        if (leftList.Count == 0) return string.Join("\n", right.Select(r => pad + r));
+
+        var rows = Math.Max(leftList.Count, right.Count);
+        var lines = new List<string>(rows);
+        for (var i = 0; i < rows; i++)
+        {
+            var cell = i < leftList.Count ? leftList[i] : new Cell("", 0);
+            var line = pad + cell.Text + new string(' ', Math.Max(0, leftWidth - cell.Width));
+            lines.Add(i < right.Count ? line + new string(' ', gap) + right[i] : line.TrimEnd());
+        }
+
+        return string.Join("\n", lines);
     }
 
     private static string Center(string text, int width, string color)

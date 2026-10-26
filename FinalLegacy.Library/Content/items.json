@@ -1,0 +1,191 @@
+[
+  // Weapons (main hand). "stat": might = ATK, finesse = the better of ATK and AGI, arcane = INT.
+  // "critFrom": 19 makes a keen weapon (critical on 19–20).
+  {
+    "id": "ironSword", "slot": "mainHand", "rarity": "common", "price": 10,
+    "weapon": { "damage": "1d8", "type": "slashing", "stat": "might" }
+  },
+  {
+    "id": "arturiasSword", "slot": "mainHand", "rarity": "rare", "price": 40,
+    "modifiers": { "attack": 2, "defense": -1 },
+    "weapon": { "damage": "1d10", "type": "slashing", "stat": "might", "twoHanded": true }
+  },
+  {
+    "id": "apprenticeWand", "slot": "mainHand", "rarity": "common", "price": 12,
+    "weapon": { "damage": "1d8", "type": "arcane", "stat": "arcane" }
+  },
+  {
+    "id": "largeStaff", "slot": "mainHand", "rarity": "rare", "price": 40,
+    "modifiers": { "intelligence": 2, "agility": -1 },
+    "weapon": { "damage": "1d10", "type": "arcane", "stat": "arcane", "twoHanded": true }
+  },
+  {
+    "id": "doransKnife", "slot": "mainHand", "rarity": "uncommon", "price": 20,
+    "modifiers": { "attack": 2, "intelligence": -1 },
+    "weapon": { "damage": "1d6", "type": "piercing", "stat": "finesse", "critFrom": 19 }
+  },
+  {
+    "id": "shojinBlade", "slot": "mainHand", "rarity": "rare", "price": 40,
+    "modifiers": { "attack": 2, "defense": -1 },
+    "weapon": { "damage": "1d8", "type": "slashing", "stat": "finesse", "critFrom": 19 }
+  },
+  {
+    "id": "graniteHammer", "slot": "mainHand", "rarity": "epic", "price": 90,
+    "modifiers": { "attack": 2, "agility": -1 },
+    "weapon": { "damage": "2d6", "type": "bludgeoning", "stat": "might", "twoHanded": true, "hitBonus": 1 }
+  },
+
+  // Shields (off hand): armour class, and the class must be trained in shields.
+  {
+    "id": "doransShield", "slot": "offHand", "rarity": "uncommon", "price": 25,
+    "modifiers": { "defense": 2, "attack": -1 },
+    "armor": { "ac": 2 }
+  },
+  {
+    "id": "woodenShield", "slot": "offHand", "rarity": "common", "price": 10,
+    "armor": { "ac": 1 }
+  },
+
+  // Body armour: "weight" decides how much agility counts (light all, medium up to +2, heavy none).
+  {
+    "id": "apprenticeRobe", "slot": "chest", "rarity": "common", "price": 6,
+    "armor": { "ac": 0, "weight": "light" }
+  },
+  {
+    "id": "leatherArmor", "slot": "chest", "rarity": "common", "price": 12,
+    "armor": { "ac": 1, "weight": "light" }
+  },
+  {
+    "id": "chainShirt", "slot": "chest", "rarity": "common", "price": 20,
+    "armor": { "ac": 3, "weight": "medium" }
+  },
+  {
+    "id": "plateArmor", "slot": "chest", "rarity": "rare", "price": 45,
+    "modifiers": { "agility": -1 },
+    "armor": { "ac": 6, "weight": "heavy" }
+  },
+  {
+    "id": "shadowCloak", "slot": "chest", "rarity": "epic", "price": 90,
+    "modifiers": { "agility": 2, "intelligence": 2 },
+    "armor": { "ac": 2, "weight": "light" }
+  },
+
+  // Head, legs and rings.
+  {
+    "id": "ironHelm", "slot": "head", "rarity": "common", "price": 12,
+    "armor": { "ac": 1 }
+  },
+  {
+    "id": "wizardHat", "slot": "head", "rarity": "uncommon", "price": 22,
+    "modifiers": { "intelligence": 2 }
+  },
+  {
+    "id": "steelGreaves", "slot": "legs", "rarity": "uncommon", "price": 18,
+    "modifiers": { "agility": -1 },
+    "armor": { "ac": 1 }
+  },
+  {
+    "id": "travelerBoots", "slot": "legs", "rarity": "uncommon", "price": 16,
+    "modifiers": { "agility": 2 }
+  },
+  {
+    "id": "doransRing", "slot": "ring", "rarity": "uncommon", "price": 25,
+    "modifiers": { "intelligence": 2, "attack": -1 }
+  },
+
+  // ── Found on the road: more weapons ──
+  {
+    "id": "rustyMace", "slot": "mainHand", "rarity": "common", "price": 8,
+    "weapon": { "damage": "1d6", "type": "bludgeoning", "stat": "might", "hitBonus": 1 }
+  },
+  {
+    "id": "watchmanSpear", "slot": "mainHand", "rarity": "uncommon", "price": 22,
+    "weapon": { "damage": "1d10", "type": "piercing", "stat": "might", "twoHanded": true, "hitBonus": 1 }
+  },
+  {
+    "id": "thornvaldAxe", "slot": "mainHand", "rarity": "rare", "price": 45,
+    "modifiers": { "attack": 1 },
+    "weapon": { "damage": "1d12", "type": "slashing", "stat": "might", "twoHanded": true }
+  },
+  {
+    "id": "boneStaff", "slot": "mainHand", "rarity": "uncommon", "price": 24,
+    "modifiers": { "intelligence": 1 },
+    "weapon": { "damage": "1d10", "type": "necrotic", "stat": "arcane", "twoHanded": true }
+  },
+  {
+    "id": "emberWand", "slot": "mainHand", "rarity": "rare", "price": 42,
+    "modifiers": { "intelligence": 1 },
+    "weapon": { "damage": "1d10", "type": "fire", "stat": "arcane" }
+  },
+  {
+    "id": "moonglassDagger", "slot": "mainHand", "rarity": "epic", "price": 85,
+    "modifiers": { "agility": 2 },
+    "weapon": { "damage": "1d8", "type": "piercing", "stat": "finesse", "critFrom": 18 }
+  },
+  {
+    "id": "namelessBlade", "slot": "mainHand", "rarity": "legendary", "price": 220,
+    "modifiers": { "attack": 2, "agility": 1 },
+    "weapon": { "damage": "1d10", "type": "necrotic", "stat": "might", "critFrom": 19, "hitBonus": 1 }
+  },
+
+  // ── More for the other hand, the head, the body, the legs and the fingers ──
+  {
+    "id": "ironBuckler", "slot": "offHand", "rarity": "uncommon", "price": 18,
+    "modifiers": { "agility": 1 },
+    "armor": { "ac": 1 }
+  },
+  {
+    "id": "wornGrimoire", "slot": "offHand", "rarity": "uncommon", "price": 20,
+    "modifiers": { "intelligence": 2 }
+  },
+  {
+    "id": "scarletBandana", "slot": "head", "rarity": "common", "price": 8,
+    "modifiers": { "attack": 1 }
+  },
+  {
+    "id": "ravenHood", "slot": "head", "rarity": "uncommon", "price": 20,
+    "modifiers": { "agility": 2 }
+  },
+  {
+    "id": "guardianHelm", "slot": "head", "rarity": "rare", "price": 40,
+    "modifiers": { "agility": -1, "defense": 1 },
+    "armor": { "ac": 2 }
+  },
+  {
+    "id": "forgottenCrown", "slot": "head", "rarity": "legendary", "price": 200,
+    "modifiers": { "attack": 1, "defense": 1, "agility": 1, "intelligence": 1 },
+    "armor": { "ac": 1 }
+  },
+  {
+    "id": "paddedJerkin", "slot": "chest", "rarity": "common", "price": 8,
+    "armor": { "ac": 1, "weight": "light" }
+  },
+  {
+    "id": "vessarBreastplate", "slot": "chest", "rarity": "rare", "price": 50,
+    "modifiers": { "defense": 1 },
+    "armor": { "ac": 4, "weight": "medium" }
+  },
+  {
+    "id": "astralTunic", "slot": "chest", "rarity": "epic", "price": 90,
+    "modifiers": { "intelligence": 3, "agility": 1 },
+    "armor": { "ac": 1, "weight": "light" }
+  },
+  {
+    "id": "studdedLeggings", "slot": "legs", "rarity": "common", "price": 10,
+    "armor": { "ac": 1 }
+  },
+  {
+    "id": "greywolfRing", "slot": "ring", "rarity": "uncommon", "price": 22,
+    "modifiers": { "attack": 1, "agility": 1 }
+  },
+  {
+    "id": "emberSeal", "slot": "ring", "rarity": "rare", "price": 45,
+    "modifiers": { "intelligence": 2, "attack": 1 }
+  },
+
+  // Potions: drunk from the bag or in a battle (it takes the round).
+  { "id": "minorPotion", "rarity": "common", "price": 4, "heal": "1d4+2" },
+  { "id": "mistTonic", "rarity": "uncommon", "price": 12, "heal": "3d4+3" },
+  { "id": "potion", "rarity": "common", "price": 8, "heal": "2d4+2" },
+  { "id": "greaterPotion", "rarity": "rare", "price": 20, "heal": "4d4+4" }
+]

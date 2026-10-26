@@ -1,12 +1,19 @@
 {
+  // Chapter I: the original story (2023), with a chest in the cave and a merchant at its exit.
+  // Scene kinds: text + goto (narration), choices, battle, loot, shop, end. See the README.
   "start": "cave",
   "scenes": {
     "cave": {
       "text": "cave.awake",
       "choices": [
-        { "label": "common.yes", "goto": "skeleton-intro" },
+        { "label": "common.yes", "goto": "cave-chest" },
         { "label": "common.no", "reply": "cave.refuse" }
       ]
+    },
+    "cave-chest": {
+      "text": "cave.chest",
+      "loot": { "gold": 5, "items": [ "potion" ], "rolls": 1, "rarity": { "common": 70, "uncommon": 30 } },
+      "goto": "skeleton-intro"
     },
     "skeleton-intro": {
       "text": "skeleton.intro",
@@ -18,6 +25,34 @@
     },
     "skeleton-won": {
       "text": "skeleton.won",
+      "goto": "merchant"
+    },
+    "merchant": {
+      "text": "merchant.intro",
+      "shop": {
+        "rest": 6,
+        "stock": [
+          { "item": "potion" },
+          { "item": "minorPotion" },
+          { "item": "mistTonic", "count": 3 },
+          { "item": "greaterPotion", "count": 2 },
+          { "item": "scarletBandana", "count": 1 },
+          { "item": "paddedJerkin", "count": 1 },
+          { "item": "ironBuckler", "count": 1 },
+          { "item": "wornGrimoire", "count": 1 },
+          { "item": "ironHelm", "count": 1 },
+          { "item": "woodenShield", "count": 1 },
+          { "item": "wizardHat", "count": 1 },
+          { "item": "travelerBoots", "count": 1 },
+          { "item": "steelGreaves", "count": 1 },
+          { "item": "leatherArmor", "count": 1 },
+          { "item": "plateArmor", "count": 1 }
+        ]
+      },
+      "goto": "city-question"
+    },
+    "city-question": {
+      "text": "city.question",
       "choices": [
         { "label": "common.yes", "goto": "city" },
         { "label": "common.no", "goto": "forest" }

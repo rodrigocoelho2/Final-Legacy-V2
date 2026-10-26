@@ -1,136 +1,111 @@
 {
-  "heroMaxHp": 100,
+  // The hero's numbers, D&D style. See Models/Hero.cs for how they combine.
   "nameMaxLength": 20,
+  "startGold": 10,
+  "startItems": [ "potion" ],
   "combat": {
-    "attackMultiplier": 2,
-    "critChancePerAgility": 0.04,
-    "dodgeChancePerAgility": 0.03,
-    "fleeBaseChance": 0.4,
-    "fleeChancePerAgility": 0.1,
-    "magicDivisor": 1,
-    "minimumHit": 1
+    "baseArmorClass": 10,
+    "proficiency": 2,
+    "mediumArmorAgilityCap": 2,
+    "fleeDifficulty": 12
   },
+
+  // The original classes and stats (2023). "armor" is the heaviest armour the class is trained in; the two kits
+  // are the original weapon choices, now with the rest of the gear that comes with them.
   "classes": [
     {
       "id": "warrior",
       "color": "crimson",
-      "stats": {
-        "attack": 4,
-        "defense": 5,
-        "agility": 2,
-        "intelligence": 2
-      },
-      "weapons": [
-        "doransShield",
-        "arturiasSword"
+      "hair": "#6b4423",
+      "hp": 34,
+      "stats": { "attack": 4, "defense": 5, "agility": 2, "intelligence": 2 },
+      "armor": "heavy",
+      "shields": true,
+      "kits": [
+        { "show": "doransShield", "items": [ "doransShield", "ironSword", "chainShirt" ] },
+        { "show": "arturiasSword", "items": [ "arturiasSword", "chainShirt" ] }
       ]
     },
     {
       "id": "mage",
       "color": "cyan",
-      "stats": {
-        "attack": 3,
-        "defense": 3,
-        "agility": 1,
-        "intelligence": 6
-      },
-      "weapons": [
-        "doransRing",
-        "largeStaff"
+      "hair": "#c9ccd6",
+      "hp": 24,
+      "stats": { "attack": 3, "defense": 3, "agility": 1, "intelligence": 6 },
+      "armor": "light",
+      "shields": false,
+      "kits": [
+        { "show": "doransRing", "items": [ "doransRing", "apprenticeWand", "apprenticeRobe" ] },
+        { "show": "largeStaff", "items": [ "largeStaff", "apprenticeRobe" ] }
       ]
     },
     {
       "id": "assassin",
       "color": "violet",
-      "stats": {
-        "attack": 5,
-        "defense": 1,
-        "agility": 5,
-        "intelligence": 2
-      },
-      "weapons": [
-        "doransKnife",
-        "shojinBlade"
+      "hair": "#1f1f24",
+      "hp": 28,
+      "stats": { "attack": 5, "defense": 1, "agility": 5, "intelligence": 2 },
+      "armor": "light",
+      "shields": false,
+      "kits": [
+        { "show": "doransKnife", "items": [ "doransKnife", "leatherArmor" ] },
+        { "show": "shojinBlade", "items": [ "shojinBlade", "leatherArmor" ] }
       ]
     }
   ],
-  "weapons": [
-    {
-      "id": "doransShield",
-      "modifiers": {
-        "defense": 2,
-        "attack": -1
-      }
-    },
-    {
-      "id": "arturiasSword",
-      "modifiers": {
-        "attack": 2,
-        "defense": -1
-      }
-    },
-    {
-      "id": "doransRing",
-      "modifiers": {
-        "intelligence": 2,
-        "attack": -1
-      }
-    },
-    {
-      "id": "largeStaff",
-      "modifiers": {
-        "intelligence": 2,
-        "agility": -1
-      }
-    },
-    {
-      "id": "doransKnife",
-      "modifiers": {
-        "attack": 2,
-        "intelligence": -1
-      }
-    },
-    {
-      "id": "shojinBlade",
-      "modifiers": {
-        "attack": 2,
-        "defense": -1
-      }
-    }
-  ],
+
+  // The three enemies of chapter I. "aggression" is the chance they attack in a round (otherwise they guard and you
+  // attack with disadvantage).
+  // Loot: gold in a range; "drops" are each rolled on their own (an enemy's signature item); then "rolls" times a
+  // rarity is drawn by its weight ("none" = nothing) and a random item of that rarity drops.
   "enemies": [
     {
       "id": "skeleton",
-      "hp": 50,
-      "stats": {
-        "attack": 12,
-        "defense": 2,
-        "agility": 1,
-        "intelligence": 0
-      },
-      "aggression": 0.5
+      "hp": 13,
+      "ac": 13,
+      "hit": 3,
+      "damage": "1d6+1",
+      "type": "slashing",
+      "agility": 2,
+      "aggression": 0.6,
+      "loot": {
+        "gold": [ 5, 10 ],
+        "drops": [ { "item": "potion", "chance": 0.5 } ],
+        "rolls": 2,
+        "rarity": { "none": 30, "common": 48, "uncommon": 18, "rare": 4 }
+      }
     },
     {
       "id": "shadow",
-      "hp": 60,
-      "stats": {
-        "attack": 17,
-        "defense": 2,
-        "agility": 5,
-        "intelligence": 0
-      },
-      "aggression": 0.6
+      "hp": 20,
+      "ac": 13,
+      "hit": 4,
+      "damage": "1d8+2",
+      "type": "necrotic",
+      "agility": 5,
+      "aggression": 0.7,
+      "loot": {
+        "gold": [ 15, 25 ],
+        "drops": [ { "item": "shadowCloak", "chance": 0.5 } ],
+        "rolls": 2,
+        "rarity": { "none": 5, "common": 15, "uncommon": 35, "rare": 30, "epic": 12, "legendary": 3 }
+      }
     },
     {
       "id": "golem",
-      "hp": 65,
-      "stats": {
-        "attack": 15,
-        "defense": 6,
-        "agility": 0,
-        "intelligence": 0
-      },
-      "aggression": 0.5
+      "hp": 26,
+      "ac": 14,
+      "hit": 4,
+      "damage": "1d10+2",
+      "type": "bludgeoning",
+      "agility": 0,
+      "aggression": 0.5,
+      "loot": {
+        "gold": [ 15, 25 ],
+        "drops": [ { "item": "graniteHammer", "chance": 0.5 } ],
+        "rolls": 2,
+        "rarity": { "none": 5, "common": 15, "uncommon": 35, "rare": 30, "epic": 12, "legendary": 3 }
+      }
     }
   ]
 }

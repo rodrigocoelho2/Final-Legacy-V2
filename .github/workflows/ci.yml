@@ -29,14 +29,14 @@ jobs:
           dotnet test FinalLegacy.UnitTest/FinalLegacy.UnitTest.csproj -c Release --no-build
           --logger "console;verbosity=normal"
 
-      # Plays the whole chapter in both languages with piped answers: Assassin, Blade of Shojin, then "1" to every
-      # question (keep going, explore, attack). The game must reach the end of the chapter and exit cleanly when the
-      # answers run out.
+      # Plays the whole chapter in both languages with piped answers: Assassin, Blade of Shojin, then "1" and "19"
+      # in turns ("1" keeps going, explores and attacks; "19" leaves the merchant, and is just an invalid answer
+      # anywhere else). The game must reach the end of the chapter and exit cleanly when the answers run out.
       - name: Playthrough
         run: |
           mkdir -p playthrough
           for lang in pt en; do
-            { printf '3\n2\n\nRodas\n\n'; yes 1 | head -n 200; } \
+            { printf '3\n2\n\nRodas\n\n'; for i in $(seq 300); do echo 1; echo 19; done; } \
               | dotnet run --project FinalLegacy.Game -c Release --no-build -- --lang $lang --seed 1 \
               > playthrough/$lang.txt
             grep -E "Fim do Capítulo I|End of Chapter I" playthrough/$lang.txt
@@ -84,6 +84,6 @@ jobs:
 
       - name: Play the start in the container
         run: |
-          { printf '1\n1\n\nRodas\n\n1\n'; } | docker run -i --rm final-legacy --lang en > docker.txt || true
+          { printf "1\n1\n\nRodas\n\n1\n"; } | docker run -i --rm final-legacy --lang en > docker.txt || true
           cat docker.txt
           grep "you wake up in a dark cave" docker.txt

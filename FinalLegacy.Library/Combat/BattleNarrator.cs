@@ -4,69 +4,83 @@ using FinalLegacy.Library.Models;
 
 namespace FinalLegacy.Library.Combat;
 
-/// <summary>Turns what happened in a round into the lines shown under the HP bars, in the chosen language.</summary>
+/// <summary>
+/// Turns a round into the lines under the HP bars, dice included: "Atacas: d20 14+5 = 19 vs CA 13 — acertas!
+/// 1d10+3 (7+3) → 10 de dano cortante."
+/// </summary>
 public sealed class BattleNarrator(Localizer texts)
 {
-    public IReadOnlyList<string> Describe(EnemyType enemy, IEnumerable<RoundEvent> events)
-    {
-        var lines = new List<string>();
-        foreach (var e in events)
-        {
-            lines.Add(Describe(enemy, e));
-            if (e.Kind == RoundEventKind.HeroBlocked)
-            {
-                lines.Add(texts["battle.counterReady"]);
-            }
-        }
+    public IReadOnlyList<string> Describe(Battle battle, IEnumerable<RoundEvent> events) =>
+        events.Select(e => Describe(battle.Enemy, battle.Hero, e)).ToList();
 
-        return lines;
-    }
-
-    public string Describe(EnemyType enemy, RoundEvent e)
+    public string Describe(EnemyType enemy, Hero hero, RoundEvent e)
     {
         var the = texts[$"enemy.{enemy.Id}.the"];
+        var heroAttacks = e.Kind == RoundEventKind.HeroAttack;
+        var type = heroAttacks ? hero.Weapon.DamageType : enemy.DamageType;
         (string, object?)[] values =
         [
             ("enemy", texts[$"enemy.{enemy.Id}"]),
             ("the", the),
             ("The", Localizer.Capitalize(the)),
-            ("of", texts[$"enemy.{enemy.Id}.of"]),
-            ("damage", e.Damage),
-            ("blocked", e.Blocked),
-            ("magic", e.Magic),
+            ("roll", e.Roll is { } r ? RollText(r) : ""),
+            ("ac", e.Roll?.Target),
+            ("dc", e.Roll?.Target),
+            ("damage", e.Damage?.Total),
+            ("damageRoll", e.Damage?.Detail),
+            ("type", texts[$"damage.{type}"]),
+            ("item", e.Item is { } item ? texts[$"item.{item.Id}"] : ""),
+            ("heal", e.Damage?.Total),
+            ("healRoll", e.Damage?.Detail),
         ];
 
-        var line = texts.Format(Key(e.Kind), values);
-        if (e.Kind is RoundEventKind.HeroHit or RoundEventKind.HeroCrit or RoundEventKind.HeroCounter && e.Magic > 0)
-        {
-            // "Atacaste: 6 de dano." → "Atacaste: 6 de dano (4 de magia)."
-            var magic = texts.Format("battle.magicPart", values);
-            line = line.EndsWith('.') ? line[..^1] + magic + "." : line + magic;
-        }
-        else if (e.Kind == RoundEventKind.EnemyHit && e.Blocked > 0)
-        {
-            // "O Esqueleto atacou: 4 de dano." → "O Esqueleto atacou: 4 de dano (3 travado pela armadura)."
-            var armour = texts.Format("battle.armorPart", values);
-            line = line.EndsWith('.') ? line[..^1] + armour + "." : line + armour;
-        }
-
-        return line;
+        return texts.Format(Key(e), values);
     }
 
-    private static string Key(RoundEventKind kind) => kind switch
+    /// <summary>"d20 14+5 = 19", or "d20 4|15 (vantagem)+5 = 20" with the kept die highlighted.</summary>
+    public string RollText(D20Roll roll)
     {
-        RoundEventKind.HeroHit => "battle.heroHit",
-        RoundEventKind.HeroCrit => "battle.heroCrit",
-        RoundEventKind.HeroCounter => "battle.heroCounter",
-        RoundEventKind.EnemyDodged => "battle.enemyDodged",
-        RoundEventKind.EnemyDefended => "battle.enemyDefended",
-        RoundEventKind.EnemyHit => "battle.enemyHit",
-        RoundEventKind.HeroBlocked => "battle.heroBlocked",
-        RoundEventKind.HeroDodged => "battle.heroDodged",
-        RoundEventKind.BothDefend => "battle.bothDefend",
+        string Die(int value, bool kept)
+        {
+            var color = !kept ? "dim" : value == 20 ? "gold" : value == 1 ? "red" : null;
+            return color is null ? value.ToString() : $"[{color}]{value}[/]";
+        }
+
+        var dice = roll.Mode == RollMode.Normal
+            ? Die(roll.Dice[0], true)
+            : string.Join("|", roll.Dice.Select((d, i) => Die(d, d == roll.Natural && roll.Dice.ToList().IndexOf(roll.Natural) == i)))
+              + $" [dim]({texts[roll.Mode == RollMode.Advantage ? "battle.advantage" : "battle.disadvantage"]})[/]";
+        var bonus = roll.Bonus >= 0 ? $"+{roll.Bonus}" : roll.Bonus.ToString();
+        return $"[dim]d20[/] {dice}{bonus} = {roll.Total}";
+    }
+
+    private static string Key(RoundEvent e) => e.Kind switch
+    {
+        RoundEventKind.HeroAttack => e.Roll!.Fumble ? "battle.heroFumble"
+            : !e.Roll.Success ? "battle.heroMiss"
+            : e.Roll.Critical ? "battle.heroCrit"
+            : "battle.heroHit",
+        RoundEventKind.EnemyAttack => e.Roll!.Fumble ? "battle.enemyFumble"
+            : !e.Roll.Success ? "battle.enemyMiss"
+            : e.Roll.Critical ? "battle.enemyCrit"
+            : "battle.enemyHit",
+        RoundEventKind.HeroGuards => "battle.heroGuards",
+        RoundEventKind.EnemyGuards => "battle.enemyGuards",
+        RoundEventKind.BothGuard => "battle.bothGuard",
+        RoundEventKind.GuardOpening => "battle.guardOpening",
+        RoundEventKind.HeroHeals => "battle.heroHeals",
         RoundEventKind.FleeLocked => "battle.fleeLocked",
         RoundEventKind.FleeFailed => "battle.fleeFailed",
         RoundEventKind.Fled => "battle.fled",
-        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
+        _ => throw new ArgumentOutOfRangeException(nameof(e), e.Kind, null),
     };
+
+    /// <summary>Every text key the narrator can ask for.</summary>
+    public static readonly IReadOnlyList<string> Keys =
+    [
+        "battle.heroHit", "battle.heroCrit", "battle.heroMiss", "battle.heroFumble",
+        "battle.enemyHit", "battle.enemyCrit", "battle.enemyMiss", "battle.enemyFumble",
+        "battle.heroGuards", "battle.enemyGuards", "battle.bothGuard", "battle.guardOpening", "battle.heroHeals",
+        "battle.fleeLocked", "battle.fleeFailed", "battle.fled", "battle.advantage", "battle.disadvantage",
+    ];
 }

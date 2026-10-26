@@ -3,7 +3,8 @@
 </p>
 
 <p align="center">
-  A <b>text-based RPG</b> for the terminal: pick a class and a weapon, wake up in a dark cave and fight your way out —
+  A <b>pixel-art RPG for the terminal</b>, D&amp;D style: pick a class and a weapon, wake up in a dark cave and fight
+  your way out with d20 rolls, loot, a merchant and gear that changes how your hero looks —
   in <b>Portuguese or English</b>, on Windows, Linux and macOS.
 </p>
 
@@ -16,50 +17,68 @@
 </p>
 
 <p align="center">
-  <a href="#then-and-now">Then and now</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#screenshots">Screenshots</a> ·
   <a href="#playing">Playing</a> ·
-  <a href="#classes-and-weapons">Classes</a> ·
   <a href="#how-combat-works">Combat</a> ·
+  <a href="#items-and-loot">Items</a> ·
+  <a href="#then-and-now">Then and now</a> ·
   <a href="#writing-more-story">More story</a> ·
   <a href="#development">Development</a>
+</p>
+
+<p align="center">
+  <img src="docs/images/battle.png" alt="A battle: the hero and the skeleton side by side, with the dice of the last round" width="80%">
 </p>
 
 ---
 
 Final Legacy started in 2023 as my secondary-school computer science project: 650 lines of C in one file
 ([the original](https://github.com/rodrigocoelho2/Final-Legacy), kept as it was in [`Original/`](Original)).
-I loved making it, but I was still learning. **V2 keeps the game exactly as it was** — the story, the three classes, the
-six weapons and their names, the Atacar / Defender / Fugir battles, the letter-by-letter text and the osteoporosis
-joke — and rebuilds everything underneath.
+I loved making it, but I was still learning. **V2 keeps the game as it was** — the story, the three classes, the six
+original weapons and their names, the Atacar / Defender / Fugir battles, the letter-by-letter text and the osteoporosis
+joke — rebuilds everything underneath, and adds what it always wanted to be: an RPG with gear, loot and dice.
 
-## Then and now
+## Features
 
-| | 2023 (C) | V2 (.NET 10) |
-| --- | --- | --- |
-| Runs on | Windows only (`windows.h`, `conio.h`, `system("cls")`) | Windows, Linux, macOS, Docker |
-| Language | Portuguese | Portuguese or English, chosen at the start |
-| Structure | one 650-line `main` with `goto` | an engine (Library) and a console (Game), with the story and stats in data files |
-| Menus | type a number | arrow keys, or a number |
-| Stats used in combat | ATK and DEF | all four: AGI and INT finally count |
-| Tests | — | 45 unit tests and a full playthrough in CI |
+- **Pixel art in the terminal.** Every hero, enemy and item is a 16×24 sprite drawn with half blocks in full colour
+  (256 colours where the terminal has fewer). The hero is a paper doll: **everything you wear shows** — helmets, armour,
+  shields, swords, staves, cloaks, crowns.
+- **D&amp;D-style combat.** d20 + attack bonus against the armour class, damage dice, natural 20 criticals (19–20 with
+  keen blades), natural 1 fumbles, advantage and disadvantage — and every roll on screen.
+- **Inventory and equipment** in six slots (head, chest, legs, main hand, off hand, ring), with rarities from common to
+  legendary. Highlight an item and the hero **tries it on**: the picture changes and AC, attack and damage show what
+  you'd gain or lose, in green and red.
+- **42 items** with names and descriptions of their own — the original Doran's gear and Sword of Artúrias, and new finds
+  like Thornvald's Axe, the Moonglass Dagger, the Raven Hood or the Crown of the Forgotten King.
+- **Random loot.** Every enemy drops gold and rolls on a loot table weighted by rarity; the chapter's last fights can
+  drop epics and, if you're lucky, a legendary.
+- **A merchant** at the mouth of the cave: buy, sell, or rest by the fire. HP carries over from fight to fight, so
+  potions and a night's sleep matter.
+- **Class training.** Warriors wear anything and carry shields; Mages and Assassins only light armour — wear something
+  heavier and every attack has disadvantage.
+- **Portuguese or English**, chosen at the start. Arrow keys or numbers. Runs on Windows, Linux, macOS and in Docker,
+  with no dependencies.
 
-**Bugs fixed on the way** (each one has a test):
+## Screenshots
 
-- The menu loops were `while (arma != 1 || arma != 2)`, which is always true: the only way out was a `goto`.
-- `if (arma = 1)` assigned instead of comparing.
-- Choosing *Fugir* always said "Não podes fugir desta batalha", even in a battle you could flee (missing braces).
-- Agility and intelligence were shown but never used.
-- The Mysterious Shadow and the Stone Golem had exactly the same stats.
-- Typing a letter at a menu sent the game into an endless loop (`scanf("%d")` never consumed it).
-- The name was read with `scanf("%s")` into 30 characters: a longer name overflowed the buffer, and a space cut it.
-- The accents had turned into `�` (the file was saved in the wrong encoding), and a stray `p` on line 53 stopped it
-  compiling at all.
+| | |
+| --- | --- |
+| <img src="docs/images/class.png" alt="Choosing a class"> | <img src="docs/images/kit.png" alt="Choosing the weapon: the hero wears the whole kit"> |
+| **Choose a class** — the hero shows their starting gear. | **Choose a weapon** — the original choices, now whole kits. |
+| <img src="docs/images/merchant.png" alt="The merchant: the hero tries on an Iron Helm, AC 16 → 17"> | <img src="docs/images/loot.png" alt="What the skeleton dropped"> |
+| **The merchant** — highlight an item and the hero tries it on. | **Loot** — gold and random drops after every fight. |
+
+<p align="center">
+  <img src="docs/images/sprites.png" alt="Every hero kit, the three enemies and some items" width="100%">
+</p>
 
 ## Playing
 
 **Download** — every push to `main` builds a single executable for Windows, Linux and macOS (Apple silicon): open the
 latest [CI run](https://github.com/rodrigocoelho2/Final-Legacy-V2/actions/workflows/ci.yml), download
-`final-legacy-win-x64` (or yours) and run it. Nothing else to install.
+`final-legacy-win-x64` (or yours) and run it. Nothing else to install. Best in Windows Terminal, iTerm2, VS Code or any
+modern terminal, at least 80×28.
 
 **From the code** (.NET 10 SDK):
 
@@ -78,106 +97,144 @@ docker run -it --rm final-legacy
 | --- | --- |
 | ↑ ↓ (or W S) | move through a menu |
 | Enter / Space | confirm |
-| 1, 2, 3… | pick an option at once |
+| 1–9 | pick an option at once |
 | any key while text is being written | show the rest at once |
 
 | Options | |
 | --- | --- |
 | `--lang pt` / `--lang en` | skip the language menu |
 | `--fast` | text at once instead of letter by letter |
-| `--no-color` | no colours (also when `NO_COLOR` is set) |
+| `--no-color` | no colours and no pixel art (also when `NO_COLOR` is set) |
 | `--seed 42` | the same dice every time, to replay a game |
 
-It also plays with piped input — one answer per line, no colours, no animation — which is how CI plays the whole
-chapter on every push.
-
-```
-  Fighting: Mysterious Shadow · Round 3
-
-  Rodas · Assassin · Blade of Shojin
-  HP ████████████████████░░░░  83/100
-
-  Mysterious Shadow
-  HP ██░░░░░░░░░░░░░░░░░░░░░░  3/60
-
-  ────────────────────────────────────────────────────────
-  The Mysterious Shadow defended (2 blocked).
-  You attacked: 14 damage (2 from magic).
-  ────────────────────────────────────────────────────────
-
- › [1] Attack       [2] Defend       [3] Flee (not in this fight)
-```
-
-## Classes and weapons
-
-The stats are the original's, to the point.
-
-| Class | ATK | DEF | AGI | INT | Weapons |
-| --- | --- | --- | --- | --- | --- |
-| **Guerreiro** / Warrior | 4 | 5 | 2 | 2 | Escudo de Dorans (+2 DEF −1 ATK) · Espada de Artúrias (+2 ATK −1 DEF) |
-| **Mago** / Mage | 3 | 3 | 1 | 6 | Anel de Dorans (+2 INT −1 ATK) · Bastão Desnecessariamente Grande (+2 INT −1 AGI) |
-| **Assassino** / Assassin | 5 | 1 | 5 | 2 | Faca de Dorans (+2 ATK −1 INT) · Lâmina de Shojin (+2 ATK −1 DEF) |
+`FINAL_LEGACY_COLORS=256` forces 256 colours on a terminal that doesn't really do 24-bit colour. The game also plays
+with piped input — one answer per line, no colours, no animation — which is how CI plays the whole chapter on every
+push.
 
 ## How combat works
 
-As in the original, every round you **attack**, **defend** or **flee**, and the enemy randomly attacks or defends.
-HP starts at 100 in every battle. What's new is that every stat now matters:
+Every round you **attack**, **defend**, **drink a potion** or **flee**, and the enemy — as in the original — randomly
+attacks or guards.
 
-- **Attacking** deals 2 × ATK, minus half the enemy's DEF (its armour) — or all of it if the enemy defends.
-- **Intelligence** adds INT of magic damage that no armour stops: the Mage's strength.
-- **Agility** gives 4 % per point of a **critical hit** (double the physical damage) and 3 % per point of **dodging** a
-  hit.
-- **Your armour** takes half your DEF off every hit. **Defending** takes all of it off — and a blocked hit sets up a
-  **counter-attack**: your next hit is a critical that goes straight through the enemy's guard. The Shield Warrior
-  lives on it.
-- **Fleeing** works 40 % + 10 % per AGI of the time, when a battle allows it (none in chapter I do, like the original).
-- You strike first: an enemy you knock out doesn't hit back.
+- **Attacking** rolls d20 + your attack bonus against the enemy's **AC**. Your attack bonus is +2 (proficiency) plus
+  the modifier of the stat your weapon uses: **ATK** for swords, axes and hammers, the better of **ATK and AGI** for
+  knives and light blades (finesse), **INT** for wands and staves (arcane). A stat's modifier is half of it.
+- **Damage** is the weapon's dice plus that same modifier. A **natural 20** is a critical and doubles the dice (keen
+  blades crit on 19–20, the Moonglass Dagger on 18–20); a **natural 1** always misses.
+- **Guarding** enemies make you attack with **disadvantage** (roll two d20, keep the lower).
+- **Defending** gives the enemy disadvantage; if it misses, you **block**, and your next attack has **advantage**.
+- **A potion** heals, but takes the round.
+- **Fleeing** is d20 + your AGI modifier against 12, when a battle allows it (none in chapter I do, like the original).
+- **Your AC** = 10 + body armour + AGI modifier (all of it in light armour, up to +2 in medium, none in heavy) + DEF
+  modifier + shield, helmet and greaves.
 
-Every number is in [`Content/rules.json`](FinalLegacy.Library/Content/rules.json).
+| Class | HP | ATK | DEF | AGI | INT | Trained in | Weapon choices (kits) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| **Guerreiro** / Warrior | 34 | 4 | 5 | 2 | 2 | any armour, shields | Escudo de Dorans + Iron Sword + Chain Shirt · Espada de Artúrias + Chain Shirt |
+| **Mago** / Mage | 24 | 3 | 3 | 1 | 6 | light armour | Anel de Dorans + Apprentice's Wand + Robe · Bastão Desnecessariamente Grande + Robe |
+| **Assassino** / Assassin | 28 | 5 | 1 | 5 | 2 | light armour | Faca de Dorans + Leather Armour · Lâmina de Shojin + Leather Armour |
 
-| Enemy | HP | ATK | DEF | AGI | Attacks |
-| --- | --- | --- | --- | --- | --- |
-| Esqueleto / Skeleton | 50 | 12 | 2 | 1 | half the time |
-| Sombra Misteriosa / Mysterious Shadow | 60 | 17 | 2 | 5 | 60 % — fast, hard to hit |
-| Golem de Pedra / Stone Golem | 65 | 15 | 6 | 0 | half the time — slow, armoured |
+The class stats and the six original weapons' bonuses are the 2023 game's, to the point.
+
+| Enemy | HP | AC | Attack | Damage | Attacks | |
+| --- | --- | --- | --- | --- | --- | --- |
+| Esqueleto / Skeleton | 13 | 13 | +3 | 1d6+1 slashing | 60 % | |
+| Sombra Misteriosa / Mysterious Shadow | 20 | 13 | +4 | 1d8+2 necrotic | 70 % | fast and relentless |
+| Golem de Pedra / Stone Golem | 26 | 14 | +4 | 1d10+2 bludgeoning | 50 % | slow, armoured |
+
+Chapter I was balanced by simulating thousands of fights for every kit: the skeleton is almost always won; the last
+fight is won 80–98 % of the time by a player who drinks their potions — and lost more often by one who doesn't.
+
+## Items and loot
+
+| Rarity | Items |
+| --- | --- |
+| Common | Iron Sword · Rusty Mace · Apprentice's Wand · Wooden Shield · Apprentice's Robe · Patched Gambeson · Leather Armour · Chain Shirt · Iron Helm · Scarlet Bandana · Studded Breeches · Minor Potion · Healing Potion |
+| <span>Uncommon</span> | Doran's Knife · Doran's Shield · Doran's Ring · Watchman's Spear · Bone Staff · Iron Buckler · Worn Grimoire · Wizard's Hat · Raven Hood · Steel Greaves · Traveller's Boots · Greywolf Ring · Mist Tonic |
+| Rare | Sword of Artúrias · Unnecessarily Large Staff · Blade of Shojin · Thornvald's Axe · Ember Wand · Plate Armour · Vessar Breastplate · Broken Guardian Helm · Ember Seal · Greater Potion |
+| Epic | Granite Hammer · Moonglass Dagger · Shadow Cloak · Astral Tunic |
+| Legendary | The Nameless Blade · Crown of the Forgotten King |
+
+Each enemy has a **loot table**: gold in a range, its signature drop on a chance of its own (the Shadow's cloak, the
+Golem's hammer), then a number of **random rolls** — each draws a rarity by weight (or nothing) and a random item of
+that rarity. The cave's chest rolls too.
+
+| Loot | Gold | Signature | Rolls | Nothing | Common | Uncommon | Rare | Epic | Legendary |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Chest in the cave | 5 | Healing Potion | 1 | | 70 | 30 | | | |
+| Skeleton | 5–10 | Healing Potion (50 %) | 2 | 30 | 48 | 18 | 4 | | |
+| Shadow / Golem | 15–25 | Shadow Cloak / Granite Hammer (50 %) | 2 | 5 | 15 | 35 | 30 | 12 | 3 |
+
+## Then and now
+
+| | 2023 (C) | V2 (.NET 10) |
+| --- | --- | --- |
+| Runs on | Windows only (`windows.h`, `conio.h`, `system("cls")`) | Windows, Linux, macOS, Docker |
+| Language | Portuguese | Portuguese or English, chosen at the start |
+| Look | coloured text | pixel art: heroes, enemies, every item |
+| Combat | attack / defend / flee, ATK and DEF | d20 rolls, AC, damage dice, criticals, advantage — all four stats count |
+| Gear | one weapon choice | 42 items in six slots, a bag, a merchant, random loot |
+| Structure | one 650-line `main` with `goto` | an engine (Library) and a console (Game), with the story, stats, items and sprites in data files |
+| Tests | — | 62 unit tests and a full playthrough in CI |
+
+**Bugs fixed on the way** (each one has a test):
+
+- The menu loops were `while (arma != 1 || arma != 2)`, which is always true: the only way out was a `goto`.
+- `if (arma = 1)` assigned instead of comparing.
+- Choosing *Fugir* always said "Não podes fugir desta batalha", even in a battle you could flee (missing braces).
+- Agility and intelligence were shown but never used.
+- The Mysterious Shadow and the Stone Golem had exactly the same stats.
+- Typing a letter at a menu sent the game into an endless loop (`scanf("%d")` never consumed it).
+- The name was read with `scanf("%s")` into 30 characters: a longer name overflowed the buffer, and a space cut it.
+- The accents had turned into `�` (the file was saved in the wrong encoding), and a stray `p` on line 53 stopped it
+  compiling at all.
 
 ## Writing more story
 
-The story is data: chapter II needs no new code.
+The story, the items and the art are data: chapter II needs no new code.
 
 - [`story.json`](FinalLegacy.Library/Content/story.json) — the scenes and how they connect. A scene is a **narration**
   (`text` + `goto`), a **choice** (`text` + `choices`, each with a `goto`, or a `reply` that answers and asks again —
-  like "Não" in the cave), a **battle** (`battle: { enemy, canFlee }` + `win`, and `flee` when it can be fled) or an
-  **end** (`text` + `end: true`).
+  like "Não" in the cave), a **battle** (`battle: { enemy, canFlee }` + `win`, and `flee` when it can be fled), a
+  **loot** scene (`loot: { gold, items, rolls, rarity }`), a **shop** (`shop: { stock, rest }`) or an **end**.
+  Choice scenes get an *Inventory* option on their own.
+- [`items.json`](FinalLegacy.Library/Content/items.json) — every item: slot, rarity, price, stat modifiers, and
+  `weapon` (damage dice, type, stat, two-handed, keen), `armor` (AC, weight) or `heal`.
+- [`sprites.json`](FinalLegacy.Library/Content/sprites.json) — a palette of letters and every sprite as rows of them
+  (`.` is see-through). An item's sprite is a layer over the hero: draw only its rows.
+- [`rules.json`](FinalLegacy.Library/Content/rules.json) — classes, kits, enemies and their loot tables.
 - [`pt.json`](FinalLegacy.Library/Content/pt.json) and [`en.json`](FinalLegacy.Library/Content/en.json) — every text,
   by key. `{name}` is the hero's name; `[gold]…[/]`, `[amber]`, `[red]`, `[crimson]`, `[cyan]`, `[violet]`,
-  `[green]` and `[dim]` colour it; `[pause]` is the original's slow "...".
-- [`rules.json`](FinalLegacy.Library/Content/rules.json) — classes, weapons, enemies and the combat numbers.
+  `[green]`, `[blue]`, `[white]` and `[dim]` colour it; `[pause]` is the original's slow "...".
 
-`ContentTests` checks that every scene leads somewhere real, every enemy exists, every scene can be reached, both
-languages have every text and no tag is misspelled — so a broken chapter fails the build instead of a game.
+`ContentTests` checks that every scene leads somewhere real, every enemy and item exists and has a sprite, every
+sprite row is 16 wide and uses palette colours, every loot table can find items of its rarities, both languages have
+every text and no tag is misspelled — so a broken chapter fails the build instead of a game.
 
 ## Development
 
 ```
 FinalLegacy.slnx
 ├── FinalLegacy.Library/        the game without the console (no dependencies)
-│   ├── Content/                rules.json, story.json, pt.json, en.json (embedded) and their loader and validator
-│   ├── Models/                 Stats, classes, weapons, enemies, the hero
-│   ├── Combat/                 Battle (the rules), BattleNarrator (what happened, in words), the dice
+│   ├── Content/                rules, items, sprites, story, pt and en (embedded JSON), their loader and validator
+│   ├── Models/                 Stats, classes, kits, enemies, loot tables, the Hero (equipment, bag, AC, attack)
+│   ├── Items/                  Item, weapons, armour, potions
+│   ├── Combat/                 Dice and d20 rolls, Battle (the rules), BattleNarrator (the rolls in words)
+│   ├── Sprites/                SpriteBook: the palette and the paper-doll layering
 │   ├── Story/                  the scene graph
-│   ├── Adventures/             Adventure (a playthrough) and IGameUi (what it needs from a screen)
+│   ├── Adventures/             Adventure (a playthrough, loot, inventory, merchant) and IGameUi (what it needs from a screen)
 │   ├── Localization/           the texts of a language and their {placeholders}
 │   └── Text/                   the [colour] markup
-├── FinalLegacy.Game/           the console: ANSI colours, menus, the typewriter text, the battle screen
-│   ├── Terminal/               GameTerminal: keys or piped lines, colours, Windows console setup
-│   └── Ui/                     TerminalUi (every screen), MenuPrompt, Draw (boxes, bars, wrapping)
-├── FinalLegacy.UnitTest/       xUnit: combat with loaded dice, the content, whole playthroughs with a scripted player
+├── FinalLegacy.Game/           the console
+│   ├── Terminal/               GameTerminal: keys or piped lines, colours, colour depth, Windows console setup
+│   └── Ui/                     TerminalUi (every screen), PixelArt (half-block sprites), MenuPrompt, Draw
+├── FinalLegacy.UnitTest/       xUnit: d20 combat with loaded dice, equipment, loot, content, whole playthroughs
 └── Original/                   the 2023 C source, untouched
 ```
 
-The Library knows nothing about the console: `Adventure` asks an `IGameUi` for every choice, so the tests play the
-whole story with a scripted player, and a web version later would only need another `IGameUi`.
+The Library knows nothing about the console: `Adventure` asks an `IGameUi` for every choice and hands it pictures as
+pixel grids, so the tests play the whole story with a scripted player, and a web version later would only need another
+`IGameUi`.
 
 ```bash
 dotnet test FinalLegacy.UnitTest
@@ -189,5 +246,5 @@ Docker image.
 
 ## Credits
 
-The weapon names are a nod to League of Legends' items (Doran's, Shojin, the Needlessly Large Rod); Final Legacy is not
-affiliated with Riot Games.
+The Doran's items, Shojin and the unnecessarily large staff are a nod to League of Legends; Final Legacy is not
+affiliated with Riot Games. Everything else — names, art and story — is original.

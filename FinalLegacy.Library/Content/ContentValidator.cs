@@ -1,11 +1,12 @@
-using FinalLegacy.Library.Localization;
+using FinalLegacy.Library.Combat;
+using FinalLegacy.Library.Enums;
 using FinalLegacy.Library.Models;
 using FinalLegacy.Library.Story;
 
 namespace FinalLegacy.Library.Content;
 
 /// <summary>
-/// Checks the content files against each other, so a new chapter that points at a missing scene, enemy or text is
+/// Checks the content files against each other, so a new chapter, item or sprite that points at something missing is
 /// caught by the tests instead of in the middle of a game.
 /// </summary>
 public static class ContentValidator
@@ -13,17 +14,26 @@ public static class ContentValidator
     /// <summary>The texts the engine and the screens ask for directly, whatever the story.</summary>
     public static readonly IReadOnlyList<string> FixedKeys =
     [
-        "language.name",
-        "common.yes", "common.no",
+        "language.name", "common.yes", "common.no",
         "ui.tagline", "ui.welcome", "ui.chooseClass", "ui.classSummary", "ui.askName", "ui.nameInvalid",
         "ui.nameRemembered", "ui.continue", "ui.continueLine", "ui.menuHint", "ui.menuHintLine", "ui.invalidChoice",
-        "ui.invalidChoiceAgain", "ui.playAgain", "ui.goodbye",
+        "ui.invalidChoiceAgain", "ui.playAgain", "ui.goodbye", "ui.inventory", "ui.close", "ui.next",
         "stat.attack", "stat.defense", "stat.agility", "stat.intelligence",
         "battle.fighting", "battle.round", "battle.hp", "battle.attack", "battle.defend", "battle.flee",
-        "battle.fleeLockedHint", "battle.heroHit", "battle.heroCrit", "battle.heroCounter", "battle.counterReady", "battle.magicPart", "battle.armorPart", "battle.enemyDodged",
-        "battle.enemyDefended", "battle.enemyHit", "battle.heroBlocked", "battle.heroDodged", "battle.bothDefend",
-        "battle.fleeLocked", "battle.fleeFailed", "battle.fled", "battle.won", "battle.lost",
-        "game.over",
+        "battle.fleeLockedHint", "battle.won", "battle.lost", "battle.fledResult", "battle.opening",
+        "game.over", "loot.fromEnemy", "loot.gold", "loot.nothing",
+        "gear.title", "gear.equipped", "gear.bag", "gear.empty", "gear.twoHands", "gear.equip", "gear.unequip",
+        "gear.drink", "gear.unequipped", "gear.equippedItem", "gear.drank", "gear.fullHp",
+        "shop.title", "shop.forSale", "shop.services", "shop.price", "shop.soldOut", "shop.tooExpensive",
+        "shop.soldOutMessage", "shop.cantAfford", "shop.bought", "shop.rest", "shop.restFull", "shop.rested",
+        "shop.sell", "shop.sellTitle", "shop.back", "shop.leave", "shop.sold",
+        "card.hp", "card.ac", "card.attack", "card.damage", "card.gold", "card.untrained", "card.untrainedShort",
+        "effect.twoHanded", "effect.Finesse", "effect.Arcane", "effect.keen", "effect.hitBonus", "effect.ac",
+        "effect.None", "effect.Light", "effect.Medium", "effect.Heavy", "effect.heal", "effect.untrained",
+        "training.shields",
+        .. Enum.GetValues<Rarity>().Select(r => $"rarity.{r.ToString().ToLowerInvariant()}"),
+        .. Enum.GetValues<ItemSlot>().Select(s => $"slot.{s}"),
+        .. BattleNarrator.Keys,
     ];
 
     /// <summary>Every text key the rules and the story need, besides <see cref="FixedKeys"/>.</summary>
@@ -36,16 +46,24 @@ public static class ContentValidator
             yield return $"class.{heroClass.Id}.name";
             yield return $"class.{heroClass.Id}.blurb";
             yield return $"class.{heroClass.Id}.weapons";
+            yield return $"training.{heroClass.ArmorTraining}";
         }
 
-        foreach (var weapon in rules.Weapons) yield return $"weapon.{weapon.Id}";
+        foreach (var item in rules.Items)
+        {
+            yield return $"item.{item.Id}";
+            yield return $"item.{item.Id}.desc";
+            if (item.Weapon is { } w) yield return $"damage.{w.DamageType}";
+        }
 
         foreach (var enemy in rules.Enemies)
         {
             yield return $"enemy.{enemy.Id}";
             yield return $"enemy.{enemy.Id}.the";
-            yield return $"enemy.{enemy.Id}.of";
+            yield return $"damage.{enemy.DamageType}";
         }
+
+        yield return "damage.bludgeoning"; // fists
 
         foreach (var scene in story.Scenes.Values)
         {
@@ -64,20 +82,52 @@ public static class ContentValidator
         var problems = new List<string>();
         var rules = content.Rules;
         var story = content.Story;
+        var sprites = content.Sprites;
+
+        void NeedsItem(string id, string where)
+        {
+            if (!rules.HasItem(id)) problems.Add($"{where} lists an unknown item '{id}'.");
+        }
 
         foreach (var heroClass in rules.Classes)
         {
-            if (heroClass.WeaponIds.Count == 0)
-                problems.Add($"Class '{heroClass.Id}' has no weapons.");
-            foreach (var weaponId in heroClass.WeaponIds.Where(id => !rules.HasWeapon(id)))
-                problems.Add($"Class '{heroClass.Id}' lists an unknown weapon '{weaponId}'.");
+            if (heroClass.Kits.Count == 0) problems.Add($"Class '{heroClass.Id}' has no kits.");
+            foreach (var kit in heroClass.Kits)
+            {
+                NeedsItem(kit.Show, $"A kit of '{heroClass.Id}'");
+                foreach (var id in kit.Items) NeedsItem(id, $"A kit of '{heroClass.Id}'");
+                if (!kit.Items.Contains(kit.Show)) problems.Add($"A kit of '{heroClass.Id}' shows '{kit.Show}' but doesn't contain it.");
+                var slots = kit.Items.Where(rules.HasItem).Select(id => rules.Item(id).Slot).ToList();
+                if (slots.Distinct().Count() != slots.Count) problems.Add($"A kit of '{heroClass.Id}' puts two items in one slot.");
+            }
         }
+
+        foreach (var id in rules.StartItems) NeedsItem(id, "startItems");
+
+        if (!sprites.Has("body")) problems.Add("sprites.json has no 'body' sprite.");
+        foreach (var item in rules.Items.Where(i => !sprites.Has(i.Sprite)))
+            problems.Add($"Item '{item.Id}' has no sprite '{item.Sprite}'.");
+        foreach (var item in rules.Items.Where(i => i.Equippable == (i.Consumable is not null)))
+            problems.Add($"Item '{item.Id}' must be either worn (a slot) or drunk (heal), not both or neither.");
+        foreach (var item in rules.Items.Where(i => i.Weapon is not null && i.Slot != ItemSlot.MainHand))
+            problems.Add($"Weapon '{item.Id}' must go in the main hand.");
 
         foreach (var enemy in rules.Enemies)
         {
             if (enemy.MaxHp <= 0) problems.Add($"Enemy '{enemy.Id}' needs more than 0 HP.");
             if (enemy.Aggression is < 0 or > 1) problems.Add($"Enemy '{enemy.Id}' aggression must be between 0 and 1.");
+            if (!sprites.Has(enemy.Sprite)) problems.Add($"Enemy '{enemy.Id}' has no sprite '{enemy.Sprite}'.");
+            if (enemy.Loot.GoldMax < enemy.Loot.GoldMin) problems.Add($"Enemy '{enemy.Id}' loot gold goes backwards.");
+            foreach (var drop in enemy.Loot.Drops) NeedsItem(drop.ItemId, $"The loot of '{enemy.Id}'");
+            foreach (var weight in enemy.Loot.Weights ?? [])
+            {
+                if (weight.Rarity is { } r && rules.OfRarity(r).Count == 0)
+                    problems.Add($"The loot of '{enemy.Id}' can roll {r}, but there are no {r} items.");
+            }
         }
+
+        problems.AddRange(sprites.UnknownColors().Select(c => $"Sprite colour not in the palette: {c}."));
+        problems.AddRange(sprites.BadRows().Select(r => $"Sprite row must be 16 wide, rows 0–23: {r}."));
 
         if (!story.Scenes.ContainsKey(story.Start))
             problems.Add($"The story starts at an unknown scene '{story.Start}'.");
@@ -98,16 +148,17 @@ public static class ContentValidator
                         problems.Add($"Battle scene '{scene.Id}' lets the hero flee but has no 'flee' scene.");
                     break;
                 case SceneKind.Choice:
-                    if (scene.TextKey is null)
-                        problems.Add($"Choice scene '{scene.Id}' has no text.");
+                    if (scene.TextKey is null) problems.Add($"Choice scene '{scene.Id}' has no text.");
                     if (!scene.Choices.Any(c => c.Goto is not null))
                         problems.Add($"Choice scene '{scene.Id}' has no choice that moves the story on.");
                     foreach (var choice in scene.Choices.Where(c => c.Goto is null && c.ReplyKey is null))
                         problems.Add($"Choice '{choice.LabelKey}' in scene '{scene.Id}' needs a 'goto' or a 'reply'.");
                     break;
-                case SceneKind.Narration:
+                case SceneKind.Narration or SceneKind.Loot or SceneKind.Shop:
                     if (scene.TextKey is null) problems.Add($"Scene '{scene.Id}' has no text.");
                     if (scene.Goto is null) problems.Add($"Scene '{scene.Id}' has no 'goto' and is not an end.");
+                    foreach (var id in scene.Loot?.Items ?? []) NeedsItem(id, $"Scene '{scene.Id}'");
+                    foreach (var stock in scene.Shop?.Stock ?? []) NeedsItem(stock.ItemId, $"Scene '{scene.Id}'");
                     break;
                 case SceneKind.End:
                     if (scene.TextKey is null) problems.Add($"End scene '{scene.Id}' has no text.");

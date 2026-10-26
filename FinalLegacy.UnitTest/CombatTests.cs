@@ -1,192 +1,202 @@
+using FinalLegacy.Library.Combat;
 using FinalLegacy.Library.Enums;
 using static FinalLegacy.UnitTest.TestSupport;
 
 namespace FinalLegacy.UnitTest;
 
 /// <summary>
-/// The battle rules with loaded dice. Rolls are consumed in this order: the enemy's intent (below its aggression =
-/// it attacks), the enemy's dodge (only if it doesn't defend), the hero's critical (not when a counter is ready),
-/// then the hero's dodge (only if the hero doesn't defend). 0.99 never triggers anything.
+/// The d20 battle with loaded dice. Rolls are used in this order: the enemy's intent (below its aggression = it
+/// attacks); the hero's d20 (two with advantage or disadvantage) and damage dice; then the enemy's d20 and damage.
 /// </summary>
 public class CombatTests
 {
     private const double Attacks = 0.0;
-    private const double Defends = 0.99;
-    private const double No = 0.99;
-    private const double Yes = 0.0;
+    private const double Guards = 0.99;
 
     [Fact]
-    public void Attack_deals_double_attack_minus_half_armour_plus_magic()
+    public void A_hit_rolls_d20_plus_the_attack_bonus_against_the_armour_class()
     {
-        // Warrior with the Sword of Artúrias: ATK 6, DEF 4, AGI 2, INT 2. Skeleton: 50 HP, ATK 12, DEF 2.
-        var battle = Battle(Hero("warrior", "arturiasSword"), "skeleton", new LoadedDice(Attacks, No, No, No));
+        // Warrior with the Sword of Artúrias: +5 to hit, 1d10+3. Skeleton: AC 13, 13 HP.
+        var hero = Hero("warrior", "arturiasSword");
+        var battle = Battle(hero, "skeleton", new LoadedDice(Attacks, Face(8), Face(5, 10), Face(1)));
 
         var events = battle.Play(CombatAction.Attack);
 
-        Assert.Equal(RoundEventKind.HeroHit, events[0].Kind);
-        Assert.Equal(6 * 2 - 2 / 2 + 2, events[0].Damage);
-        Assert.Equal(2, events[0].Magic);
-        Assert.Equal(50 - 13, battle.EnemyHp);
+        var attack = events[0];
+        Assert.Equal(RoundEventKind.HeroAttack, attack.Kind);
+        Assert.Equal(8 + 5, attack.Roll!.Total);
+        Assert.True(attack.Roll.Success);
+        Assert.Equal(5 + 3, attack.Damage!.Total);
+        Assert.Equal(13 - 8, battle.EnemyHp);
 
-        Assert.Equal(RoundEventKind.EnemyHit, events[1].Kind);
-        Assert.Equal(12 - 4 / 2, events[1].Damage);
-        Assert.Equal(2, events[1].Blocked);
-        Assert.Equal(100 - 10, battle.HeroHp);
-        Assert.Equal(1, battle.Round);
+        // A natural 1 always misses.
+        Assert.True(events[1].Roll!.Fumble);
+        Assert.False(events[1].Roll!.Success);
+        Assert.Equal(hero.MaxHp, hero.Hp);
     }
 
     [Fact]
-    public void A_defending_enemy_takes_its_whole_defense_off()
+    public void Below_the_armour_class_is_a_miss()
     {
-        var battle = Battle(Hero("warrior", "arturiasSword"), "skeleton", new LoadedDice(Defends, No));
+        var battle = Battle(Hero("warrior", "arturiasSword"), "skeleton", new LoadedDice(Attacks, Face(7), Face(1)));
 
         var events = battle.Play(CombatAction.Attack);
 
-        Assert.Equal(2, events.Count);
-        Assert.Equal(RoundEventKind.EnemyDefended, events[0].Kind);
-        Assert.Equal(2, events[0].Blocked);
-        Assert.Equal(12 - 2 + 2, events[1].Damage);
-        Assert.Equal(100, battle.HeroHp);
+        Assert.False(events[0].Roll!.Success);
+        Assert.Null(events[0].Damage);
+        Assert.Equal(13, battle.EnemyHp);
     }
 
     [Fact]
-    public void Magic_goes_through_any_defense()
+    public void A_natural_20_is_a_critical_that_doubles_the_dice_and_a_knocked_out_enemy_does_not_hit_back()
     {
-        // Mage with Doran's Ring: ATK 2 (4 after doubling), INT 8. The Golem defends with DEF 6: 4 - 4 + 8.
-        var battle = Battle(Hero("mage", "doransRing"), "golem", new LoadedDice(Defends, No));
+        var battle = Battle(Hero("warrior", "arturiasSword"), "skeleton", new LoadedDice(Attacks, Face(20), Face(4, 10), Face(6, 10)));
 
         var events = battle.Play(CombatAction.Attack);
 
-        Assert.Equal(0 + 8, events[1].Damage);
-        Assert.Equal(4, events[1].Blocked);
-        Assert.Equal(8, events[1].Magic);
+        var attack = Assert.Single(events);
+        Assert.True(attack.Roll!.Critical);
+        Assert.Equal(2, attack.Damage!.Rolls.Count);
+        Assert.Equal(4 + 6 + 3, attack.Damage.Total);
+        Assert.Equal(BattleOutcome.Won, battle.Outcome);
     }
 
     [Fact]
-    public void A_critical_hit_doubles_the_physical_damage()
+    public void Keen_blades_are_critical_on_19()
     {
-        // Assassin with the Blade of Shojin: ATK 7, AGI 5 (20 % critical). Skeleton defends: 28 - 2 + 2.
-        var battle = Battle(Hero("assassin", "shojinBlade"), "skeleton", new LoadedDice(Defends, 0.19));
+        // Assassin with the Blade of Shojin (critical on 19–20): 1d8 doubled + 3.
+        var battle = Battle(Hero("assassin", "shojinBlade"), "shadow", new LoadedDice(Attacks, Face(19), Face(1, 8), Face(1, 8), Face(1)));
 
         var events = battle.Play(CombatAction.Attack);
 
-        Assert.Equal(RoundEventKind.HeroCrit, events[1].Kind);
-        Assert.Equal(28, events[1].Damage);
+        Assert.True(events[0].Roll!.Critical);
+        Assert.Equal(new[] { 1, 1 }, events[0].Damage!.Rolls);
+        Assert.Equal(1 + 1 + 3, events[0].Damage!.Total);
     }
 
     [Fact]
-    public void Defending_takes_the_whole_defense_off_and_sets_up_a_counter_attack()
+    public void A_guarding_enemy_gives_the_hero_disadvantage()
     {
-        // Warrior with Doran's Shield: ATK 3, DEF 7. Skeleton attacks for 12: 12 - 7.
-        var battle = Battle(Hero("warrior", "doransShield"), "skeleton", new LoadedDice(Attacks, Defends));
-
-        var events = battle.Play(CombatAction.Defend);
-
-        Assert.Equal(RoundEventKind.HeroBlocked, Assert.Single(events).Kind);
-        Assert.Equal(5, events[0].Damage);
-        Assert.Equal(7, events[0].Blocked);
-        Assert.Equal(95, battle.HeroHp);
-        Assert.True(battle.CounterReady);
-
-        // The counter is a critical that ignores the enemy's guard (no critical roll): 3 × 2 × 2 + INT 2.
-        var counter = battle.Play(CombatAction.Attack);
-
-        Assert.Equal(RoundEventKind.HeroCounter, Assert.Single(counter).Kind);
-        Assert.Equal(14, counter[0].Damage);
-        Assert.False(battle.CounterReady);
-    }
-
-    [Fact]
-    public void When_both_defend_nobody_gets_hurt()
-    {
-        var battle = Battle(Hero("mage", "largeStaff"), "skeleton", new LoadedDice(Defends));
-
-        var events = battle.Play(CombatAction.Defend);
-
-        Assert.Equal(RoundEventKind.BothDefend, Assert.Single(events).Kind);
-        Assert.Equal(100, battle.HeroHp);
-        Assert.Equal(50, battle.EnemyHp);
-        Assert.False(battle.CounterReady);
-    }
-
-    [Fact]
-    public void Agility_lets_both_sides_dodge()
-    {
-        // Assassin AGI 5: 15 % to dodge. The Shadow has AGI 5 too.
-        var battle = Battle(Hero("assassin", "doransKnife"), "shadow", new LoadedDice(Attacks, 0.14, 0.14));
+        var battle = Battle(Hero("warrior", "arturiasSword"), "skeleton", new LoadedDice(Guards, Face(18), Face(3)));
 
         var events = battle.Play(CombatAction.Attack);
 
-        Assert.Equal(new[] { RoundEventKind.EnemyDodged, RoundEventKind.HeroDodged }, events.Select(e => e.Kind));
-        Assert.Equal(100, battle.HeroHp);
-        Assert.Equal(60, battle.EnemyHp);
+        Assert.Equal(new[] { RoundEventKind.EnemyGuards, RoundEventKind.HeroAttack }, events.Select(e => e.Kind));
+        Assert.Equal(new[] { 18, 3 }, events[1].Roll!.Dice);
+        Assert.Equal(3, events[1].Roll!.Natural);
+        Assert.False(events[1].Roll!.Success);
+    }
+
+    [Fact]
+    public void Defending_gives_the_enemy_disadvantage_and_a_block_opens_it_up()
+    {
+        var hero = Hero("warrior", "doransShield");
+        var battle = Battle(hero, "skeleton", new LoadedDice(
+            Attacks, Face(19), Face(2),          // round 1: the skeleton attacks with disadvantage and keeps the 2
+            Attacks, Face(4), Face(15), Face(5, 8), Face(1)));  // round 2: advantage, keeps the 15
+
+        var first = battle.Play(CombatAction.Defend);
+
+        Assert.Equal(new[] { RoundEventKind.HeroGuards, RoundEventKind.EnemyAttack, RoundEventKind.GuardOpening }, first.Select(e => e.Kind));
+        Assert.Equal(RollMode.Disadvantage, first[1].Roll!.Mode);
+        Assert.True(battle.HeroHasOpening);
+
+        var second = battle.Play(CombatAction.Attack);
+
+        Assert.Equal(RollMode.Advantage, second[0].Roll!.Mode);
+        Assert.Equal(15, second[0].Roll!.Natural);
+        Assert.True(second[0].Roll!.Success);
+        Assert.False(battle.HeroHasOpening);
+    }
+
+    [Fact]
+    public void Armour_the_class_is_not_trained_in_gives_disadvantage()
+    {
+        var mage = Hero("mage", "largeStaff");
+        mage.Add(Rules.Item("plateArmor"));
+        mage.Equip(Rules.Item("plateArmor"));
+        Assert.False(mage.Proficient);
+
+        var battle = Battle(mage, "skeleton", new LoadedDice(Attacks, Face(17), Face(2), Face(1)));
+        var events = battle.Play(CombatAction.Attack);
+
+        Assert.Equal(RollMode.Disadvantage, events[0].Roll!.Mode);
+        Assert.False(events[0].Roll!.Success);
+    }
+
+    [Fact]
+    public void A_potion_heals_but_takes_the_round()
+    {
+        var hero = Hero("warrior", "doransShield");
+        hero.Hp = 10;
+        var potion = Rules.Item("potion");
+        var battle = Battle(hero, "skeleton", new LoadedDice(Attacks, Face(3, 4), Face(4, 4), Face(1)));
+
+        var events = battle.Play(CombatAction.UseItem, potion);
+
+        Assert.Equal(RoundEventKind.HeroHeals, events[0].Kind);
+        Assert.Equal(10 + 3 + 4 + 2, hero.Hp);
+        Assert.Equal(0, hero.Count("potion"));
+        Assert.Equal(RoundEventKind.EnemyAttack, events[1].Kind);
+        Assert.Throws<InvalidOperationException>(() => battle.Play(CombatAction.UseItem, potion));
     }
 
     [Fact]
     public void Trying_to_flee_a_battle_that_forbids_it_costs_nothing()
     {
         // The original printed "Não podes fugir" even when you could, and ran a round anyway. No dice are rolled now.
-        var dice = new LoadedDice();
-        var battle = Battle(Hero("warrior", "doransShield"), "skeleton", dice);
+        var battle = Battle(Hero("warrior", "doransShield"), "skeleton", new LoadedDice());
 
-        var events = battle.Play(CombatAction.Flee);
-
-        Assert.Equal(RoundEventKind.FleeLocked, Assert.Single(events).Kind);
+        Assert.Equal(RoundEventKind.FleeLocked, Assert.Single(battle.Play(CombatAction.Flee)).Kind);
         Assert.Equal(0, battle.Round);
         Assert.Equal(BattleOutcome.Ongoing, battle.Outcome);
     }
 
     [Fact]
-    public void Agility_makes_fleeing_easier()
+    public void Fleeing_is_d20_plus_agility_against_the_difficulty()
     {
-        // 40 % + 10 % per AGI: the Assassin (AGI 5) gets away 90 % of the time.
-        var battle = Battle(Hero("assassin", "doransKnife"), "skeleton", new LoadedDice(0.89), canFlee: true);
+        // Assassin AGI 5: +2. 10 + 2 = 12 against 12 gets away.
+        var battle = Battle(Hero("assassin", "doransKnife"), "skeleton", new LoadedDice(Attacks, Face(10)), canFlee: true);
 
-        Assert.Equal(0.9, battle.FleeChance, 3);
-        Assert.Equal(RoundEventKind.Fled, Assert.Single(battle.Play(CombatAction.Flee)).Kind);
+        var events = battle.Play(CombatAction.Flee);
+
+        Assert.Equal(RoundEventKind.Fled, Assert.Single(events).Kind);
         Assert.Equal(BattleOutcome.Fled, battle.Outcome);
     }
 
     [Fact]
-    public void A_failed_escape_gives_the_enemy_a_free_hit()
+    public void A_failed_escape_gives_the_enemy_a_hit_even_if_it_meant_to_guard()
     {
-        var battle = Battle(Hero("mage", "largeStaff"), "skeleton", new LoadedDice(No, No), canFlee: true);
+        var battle = Battle(Hero("assassin", "doransKnife"), "skeleton", new LoadedDice(Guards, Face(3), Face(1)), canFlee: true);
 
         var events = battle.Play(CombatAction.Flee);
 
-        Assert.Equal(new[] { RoundEventKind.FleeFailed, RoundEventKind.EnemyHit }, events.Select(e => e.Kind));
-        Assert.Equal(100 - (12 - 1), battle.HeroHp);
+        Assert.Equal(new[] { RoundEventKind.FleeFailed, RoundEventKind.EnemyAttack }, events.Select(e => e.Kind));
     }
 
     [Fact]
-    public void An_enemy_knocked_out_does_not_hit_back_and_the_battle_is_won()
+    public void The_hero_loses_at_zero_hp_and_hp_carries_over()
     {
-        var battle = Battle(Hero("assassin", "shojinBlade"), "skeleton", new FixedDice(Defends));
+        var hero = Hero("mage", "largeStaff");
+        hero.Hp = 3;
+        var battle = Battle(hero, "skeleton", new LoadedDice(Attacks, Face(1), Face(15), Face(4, 6)));
 
-        while (battle.Outcome == BattleOutcome.Ongoing)
-        {
-            battle.Play(CombatAction.Attack);
-        }
+        battle.Play(CombatAction.Attack);
 
-        Assert.Equal(BattleOutcome.Won, battle.Outcome);
-        Assert.Equal(0, battle.EnemyHp);
-        Assert.Equal(100, battle.HeroHp);
+        Assert.Equal(BattleOutcome.Lost, battle.Outcome);
+        Assert.Equal(0, hero.Hp);
         Assert.Throws<InvalidOperationException>(() => battle.Play(CombatAction.Attack));
     }
 
-    [Fact]
-    public void The_hero_loses_at_zero_hp()
+    [Theory]
+    [InlineData("1d8", 1, 8, 0)]
+    [InlineData("2d6+2", 2, 6, 2)]
+    [InlineData("1d4-1", 1, 4, -1)]
+    public void Dice_read_dnd_notation(string text, int count, int sides, int bonus)
     {
-        // Every roll at 0: the enemy always attacks and always dodges; the Staff Mage (AGI 0) never dodges.
-        var battle = Battle(Hero("mage", "largeStaff"), "skeleton", new FixedDice(Yes));
+        var dice = Dice.Parse(text);
 
-        while (battle.Outcome == BattleOutcome.Ongoing)
-        {
-            battle.Play(CombatAction.Attack);
-        }
-
-        Assert.Equal(BattleOutcome.Lost, battle.Outcome);
-        Assert.Equal(0, battle.HeroHp);
-        Assert.Equal(50, battle.EnemyHp);
+        Assert.Equal(new Dice(count, sides, bonus), dice);
+        Assert.Equal(text, dice.ToString());
     }
 }
